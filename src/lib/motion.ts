@@ -176,15 +176,17 @@ export function sampleTrack(
   time: number,
   fallback: number,
 ): number {
-  if (!keys.length) return fallback;
   const sorted = [...keys].sort((a, b) => a.time - b.time);
-  if (time <= sorted[0].time) return sorted[0].value;
+  const first = sorted[0];
   const last = sorted[sorted.length - 1];
+  if (!first || !last) return fallback;
+  if (time <= first.time) return first.value;
   if (time >= last.time) return last.value;
 
   for (let i = 0; i < sorted.length - 1; i++) {
     const a = sorted[i];
     const b = sorted[i + 1];
+    if (!a || !b) continue;
     if (time >= a.time && time <= b.time) {
       if (a.easing === "hold") return a.value;
       const span = b.time - a.time || 1e-6;
