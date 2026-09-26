@@ -158,7 +158,7 @@ export function Timeline(props: Props) {
             ref={trackRef}
             className="relative h-full"
             onPointerDown={(e) => {
-              if ((e.target as HTMLElement).dataset.kf) return;
+              if ((e.target as HTMLElement).dataset["kf"]) return;
               scrubbing.current = true;
               (e.currentTarget as Element).setPointerCapture(e.pointerId);
               onSeek(posFromEvent(e.clientX));

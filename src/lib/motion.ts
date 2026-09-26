@@ -223,7 +223,7 @@ export function snapToFrame(time: number, fps: number) {
 
 export function createLayer(kind: LayerKind, index: number): Layer {
   const palette = ["#ffb347", "#63d2ff", "#ff7a92", "#9df58f", "#f5e663"];
-  const color = palette[index % palette.length];
+  const color = palette[index % palette.length] ?? "#ffb347";
   const isText = kind === "text";
   return {
     id: uid("layer"),
