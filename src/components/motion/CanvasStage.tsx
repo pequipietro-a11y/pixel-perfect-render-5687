@@ -1,0 +1,138 @@
+import { useRef, useState } from "react";
+import { sampleLayer, type Layer } from "@/lib/motion";
+
+interface Props {
+  layers: Layer[];
+  time: number;
+  zoom: number;
+  width: number;
+  height: number;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onMove: (id: string, dx: number, dy: number) => void;
+}
+
+export function CanvasStage({
+  layers,
+  time,
+  zoom,
+  width,
+  height,
+  selectedId,
+  onSelect,
+  onMove,
+}: Props) {
+  const dragRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const handlePointerDown = (e: React.PointerEvent, id: string) => {
+    e.stopPropagation();
+    onSelect(id);
+    dragRef.current = { id, x: e.clientX, y: e.clientY };
+    setDragging(true);
+    (e.target as Element).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.x) / zoom;
+    const dy = (e.clientY - drag.y) / zoom;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    dragRef.current = { ...drag, x: e.clientX, y: e.clientY };
+    onMove(drag.id, dx, dy);
+  };
+
+  const endDrag = () => {
+    dragRef.current = null;
+    setDragging(false);
+  };
+
+  return (
+    <div
+      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background p-6"
+      onPointerDown={() => onSelect(null)}
+    >
+      <div
+        className="relative shadow-2xl"
+        style={{
+          width: width * zoom,
+          height: height * zoom,
+        }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        <div className="checker absolute inset-0 opacity-30" />
+        <div className="absolute inset-0 bg-card/80" />
+        <div
+          className="absolute left-1/2 top-1/2 origin-center"
+          style={{ transform: `scale(${zoom})` }}
+        >
+          {[...layers].reverse().map((layer) => {
+            if (!layer.visible) return null;
+            const v = sampleLayer(layer, time);
+            const selected = layer.id === selectedId;
+            const filters = [
+              layer.effects.blur ? `blur(${layer.effects.blur}px)` : "",
+              layer.effects.glow
+                ? `drop-shadow(0 0 ${layer.effects.glow}px ${layer.color})`
+                : "",
+              layer.effects.shadow
+                ? `drop-shadow(0 ${layer.effects.shadow}px ${layer.effects.shadow * 1.4}px rgba(0,0,0,0.55))`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            return (
+              <div
+                key={layer.id}
+                onPointerDown={(e) => handlePointerDown(e, layer.id)}
+                className={`absolute cursor-move select-none ${
+                  selected ? "outline outline-2 outline-primary" : ""
+                } ${dragging && selected ? "" : "transition-none"}`}
+                style={{
+                  width: layer.width,
+                  height: layer.height,
+                  left: -layer.width / 2,
+                  top: -layer.height / 2,
+                  opacity: v.opacity / 100,
+                  mixBlendMode: layer.blend === "normal" ? undefined : layer.blend,
+                  filter: filters || undefined,
+                  transform: `translate(${v.x}px, ${v.y}px) rotate(${v.rotation}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
+                }}
+              >
+                {layer.kind === "text" ? (
+                  <div
+                    className="flex h-full w-full items-center justify-center text-center font-display font-bold"
+                    style={{ color: layer.color, fontSize: layer.fontSize }}
+                  >
+                    {layer.text}
+                  </div>
+                ) : layer.kind === "image" && layer.src ? (
+                  <img
+                    src={layer.src}
+                    alt={layer.name}
+                    draggable={false}
+                    className="h-full w-full object-cover"
+                    style={{ borderRadius: layer.radius }}
+                  />
+                ) : (
+                  <div
+                    className="h-full w-full"
+                    style={{
+                      background: layer.color,
+                      borderRadius:
+                        layer.kind === "ellipse" ? "50%" : layer.radius,
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
