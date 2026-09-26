@@ -292,7 +292,11 @@ function Editor() {
                 const j = i + dir;
                 if (i < 0 || j < 0 || j >= ls.length) return ls;
                 const copy = [...ls];
-                [copy[i], copy[j]] = [copy[j], copy[i]];
+                const a = copy[i];
+                const b = copy[j];
+                if (!a || !b) return ls;
+                copy[i] = b;
+                copy[j] = a;
                 return copy;
               })
             }
