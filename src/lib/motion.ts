@@ -88,9 +88,9 @@ export interface Layer {
   name: string;
   kind: LayerKind;
   color: string;
-  text?: string;
-  fontSize?: number;
-  src?: string;
+  text?: string | undefined;
+  fontSize?: number | undefined;
+  src?: string | undefined;
   width: number;
   height: number;
   radius: number;
