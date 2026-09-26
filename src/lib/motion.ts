@@ -1,0 +1,295 @@
+// Core animation model: layers, keyframes, interpolation.
+
+export type PropKey =
+  | "x"
+  | "y"
+  | "rotation"
+  | "scaleX"
+  | "scaleY"
+  | "opacity";
+
+export const PROP_KEYS: PropKey[] = [
+  "x",
+  "y",
+  "rotation",
+  "scaleX",
+  "scaleY",
+  "opacity",
+];
+
+export const PROP_LABELS: Record<PropKey, string> = {
+  x: "Posição X",
+  y: "Posição Y",
+  rotation: "Rotação",
+  scaleX: "Escala X",
+  scaleY: "Escala Y",
+  opacity: "Opacidade",
+};
+
+export const PROP_UNITS: Record<PropKey, string> = {
+  x: "px",
+  y: "px",
+  rotation: "°",
+  scaleX: "%",
+  scaleY: "%",
+  opacity: "%",
+};
+
+export const PROP_STEP: Record<PropKey, number> = {
+  x: 1,
+  y: 1,
+  rotation: 1,
+  scaleX: 1,
+  scaleY: 1,
+  opacity: 1,
+};
+
+export type EasingName =
+  | "linear"
+  | "easeIn"
+  | "easeOut"
+  | "easeInOut"
+  | "easyEase"
+  | "back"
+  | "hold";
+
+export const EASINGS: Record<
+  EasingName,
+  { label: string; bezier: [number, number, number, number] }
+> = {
+  linear: { label: "Linear", bezier: [0, 0, 1, 1] },
+  easyEase: { label: "Easy Ease", bezier: [0.33, 0, 0.33, 1] },
+  easeIn: { label: "Ease In", bezier: [0.42, 0, 1, 1] },
+  easeOut: { label: "Ease Out", bezier: [0, 0, 0.58, 1] },
+  easeInOut: { label: "Ease In/Out", bezier: [0.65, 0, 0.35, 1] },
+  back: { label: "Elástico (Back)", bezier: [0.68, -0.55, 0.27, 1.55] },
+  hold: { label: "Segurar (Hold)", bezier: [1, 0, 1, 0] },
+};
+
+export interface Keyframe {
+  id: string;
+  time: number; // seconds
+  value: number;
+  easing: EasingName; // easing towards the NEXT keyframe
+}
+
+export type LayerKind = "rect" | "ellipse" | "text" | "image";
+
+export type BlendMode = "normal" | "multiply" | "screen" | "overlay";
+
+export interface LayerEffects {
+  blur: number;
+  glow: number;
+  shadow: number;
+}
+
+export interface Layer {
+  id: string;
+  name: string;
+  kind: LayerKind;
+  color: string;
+  text?: string;
+  fontSize?: number;
+  src?: string;
+  width: number;
+  height: number;
+  radius: number;
+  blend: BlendMode;
+  visible: boolean;
+  effects: LayerEffects;
+  base: Record<PropKey, number>;
+  tracks: Record<PropKey, Keyframe[]>;
+}
+
+export const DEFAULT_BASE: Record<PropKey, number> = {
+  x: 0,
+  y: 0,
+  rotation: 0,
+  scaleX: 100,
+  scaleY: 100,
+  opacity: 100,
+};
+
+export function emptyTracks(): Record<PropKey, Keyframe[]> {
+  return {
+    x: [],
+    y: [],
+    rotation: [],
+    scaleX: [],
+    scaleY: [],
+    opacity: [],
+  };
+}
+
+export function uid(prefix = "id") {
+  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** Solve y for a given x on a cubic-bezier curve (Newton + bisection). */
+export function cubicBezier(
+  [x1, y1, x2, y2]: [number, number, number, number],
+  t: number,
+): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+
+  const cx = 3 * x1;
+  const bx = 3 * (x2 - x1) - cx;
+  const ax = 1 - cx - bx;
+  const cy = 3 * y1;
+  const by = 3 * (y2 - y1) - cy;
+  const ay = 1 - cy - by;
+
+  const sampleX = (u: number) => ((ax * u + bx) * u + cx) * u;
+  const sampleDX = (u: number) => (3 * ax * u + 2 * bx) * u + cx;
+  const sampleY = (u: number) => ((ay * u + by) * u + cy) * u;
+
+  let u = t;
+  for (let i = 0; i < 8; i++) {
+    const x = sampleX(u) - t;
+    if (Math.abs(x) < 1e-6) return sampleY(u);
+    const d = sampleDX(u);
+    if (Math.abs(d) < 1e-6) break;
+    u -= x / d;
+  }
+
+  let lo = 0;
+  let hi = 1;
+  u = t;
+  for (let i = 0; i < 24; i++) {
+    const x = sampleX(u);
+    if (Math.abs(x - t) < 1e-6) break;
+    if (x > t) hi = u;
+    else lo = u;
+    u = (lo + hi) / 2;
+  }
+  return sampleY(u);
+}
+
+export function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+/** Value of a property track at a given time. */
+export function sampleTrack(
+  keys: Keyframe[],
+  time: number,
+  fallback: number,
+): number {
+  if (!keys.length) return fallback;
+  const sorted = [...keys].sort((a, b) => a.time - b.time);
+  if (time <= sorted[0].time) return sorted[0].value;
+  const last = sorted[sorted.length - 1];
+  if (time >= last.time) return last.value;
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    if (time >= a.time && time <= b.time) {
+      if (a.easing === "hold") return a.value;
+      const span = b.time - a.time || 1e-6;
+      const raw = (time - a.time) / span;
+      const eased = cubicBezier(EASINGS[a.easing].bezier, raw);
+      return lerp(a.value, b.value, eased);
+    }
+  }
+  return last.value;
+}
+
+export function sampleLayer(layer: Layer, time: number) {
+  const out = {} as Record<PropKey, number>;
+  for (const key of PROP_KEYS) {
+    out[key] = sampleTrack(layer.tracks[key], time, layer.base[key]);
+  }
+  return out;
+}
+
+export function formatTime(t: number, fps: number) {
+  const total = Math.max(0, t);
+  const s = Math.floor(total);
+  const f = Math.round((total - s) * fps);
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}.${String(
+    Math.min(f, fps - 1),
+  ).padStart(2, "0")}`;
+}
+
+export function snapToFrame(time: number, fps: number) {
+  return Math.round(time * fps) / fps;
+}
+
+export function createLayer(kind: LayerKind, index: number): Layer {
+  const palette = ["#ffb347", "#63d2ff", "#ff7a92", "#9df58f", "#f5e663"];
+  const color = palette[index % palette.length];
+  const isText = kind === "text";
+  return {
+    id: uid("layer"),
+    name:
+      kind === "text"
+        ? `Texto ${index + 1}`
+        : kind === "ellipse"
+          ? `Elipse ${index + 1}`
+          : kind === "image"
+            ? `Imagem ${index + 1}`
+            : `Forma ${index + 1}`,
+    kind,
+    color,
+    text: isText ? "Motion" : undefined,
+    fontSize: isText ? 72 : undefined,
+    width: isText ? 360 : 200,
+    height: isText ? 96 : 200,
+    radius: kind === "ellipse" ? 999 : 16,
+    blend: "normal",
+    visible: true,
+    effects: { blur: 0, glow: 0, shadow: 0 },
+    base: { ...DEFAULT_BASE },
+    tracks: emptyTracks(),
+  };
+}
+
+export function starterProject(): Layer[] {
+  const a = createLayer("rect", 0);
+  a.name = "Bloco";
+  a.base.x = -220;
+  a.tracks.x = [
+    { id: uid("k"), time: 0, value: -260, easing: "easyEase" },
+    { id: uid("k"), time: 1.4, value: 180, easing: "easeOut" },
+    { id: uid("k"), time: 3, value: -60, easing: "linear" },
+  ];
+  a.tracks.rotation = [
+    { id: uid("k"), time: 0, value: 0, easing: "easeInOut" },
+    { id: uid("k"), time: 3, value: 180, easing: "linear" },
+  ];
+
+  const b = createLayer("ellipse", 1);
+  b.name = "Círculo";
+  b.width = 160;
+  b.height = 160;
+  b.base.x = 200;
+  b.base.y = 90;
+  b.blend = "screen";
+  b.effects.glow = 28;
+  b.tracks.scaleX = [
+    { id: uid("k"), time: 0.2, value: 40, easing: "back" },
+    { id: uid("k"), time: 1.6, value: 130, easing: "easeInOut" },
+    { id: uid("k"), time: 3, value: 60, easing: "linear" },
+  ];
+  b.tracks.scaleY = [
+    { id: uid("k"), time: 0.2, value: 40, easing: "back" },
+    { id: uid("k"), time: 1.6, value: 130, easing: "easeInOut" },
+    { id: uid("k"), time: 3, value: 60, easing: "linear" },
+  ];
+
+  const c = createLayer("text", 2);
+  c.text = "MOTION";
+  c.base.y = -180;
+  c.tracks.opacity = [
+    { id: uid("k"), time: 0.4, value: 0, easing: "easeOut" },
+    { id: uid("k"), time: 1.2, value: 100, easing: "linear" },
+    { id: uid("k"), time: 2.6, value: 100, easing: "easeIn" },
+    { id: uid("k"), time: 3.2, value: 0, easing: "linear" },
+  ];
+
+  return [c, b, a];
+}
