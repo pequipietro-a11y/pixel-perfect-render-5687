@@ -22,7 +22,7 @@ export function CanvasStage({
   width,
   height,
   selectedId,
-  background,
+  background = { color: "#1b2230" },
   onSelect,
   onMove,
   onEditText,
