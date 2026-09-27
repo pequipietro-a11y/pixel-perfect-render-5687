@@ -3,6 +3,7 @@ import { CanvasStage } from "@/components/motion/CanvasStage";
 import { Inspector } from "@/components/motion/Inspector";
 import { LayersPanel } from "@/components/motion/LayersPanel";
 import { Timeline } from "@/components/motion/Timeline";
+import { export3D } from "@/lib/export3d";
 import { exportVideo, type Background } from "@/lib/render";
 import {
   PROP_KEYS,
@@ -349,6 +350,15 @@ export function Editor() {
           )}
           <button className="tool-btn" onClick={exportProject}>
             Salvar projeto
+          </button>
+          <button
+            className="tool-btn"
+            title="Exporta as camadas no tempo atual como modelo 3D (.glb)"
+            onClick={() =>
+              export3D(layers, time).catch((e) => alert("Falha: " + String(e)))
+            }
+          >
+            Exportar 3D
           </button>
           <button
             className="tool-btn"
