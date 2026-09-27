@@ -429,6 +429,8 @@ function Editor() {
               selectedId={selectedId}
               onSelect={setSelectedId}
               onMove={moveLayer}
+              background={background}
+              onEditText={editText}
             />
           </div>
           <div className="h-72 shrink-0 border-t border-border">
@@ -451,6 +453,8 @@ function Editor() {
                 setTime(0);
               }}
               onToggleLoop={() => setLoop((l) => !l)}
+              onAddKeyframe={() => keyframeAll(true)}
+              onDeleteKeyframe={() => keyframeAll(false)}
               onFps={setFps}
               onDuration={setDuration}
               onMoveKeyframe={(layerId, key, kfId, t) =>
