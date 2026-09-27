@@ -151,5 +151,5 @@ export async function exportVideo(opts: {
   });
   rec.stop();
   await done;
-  return { blob: new Blob(chunks, { type: mime.split(";")[0] }), ext };
+  return { blob: new Blob(chunks, { type: mime.split(";")[0] ?? mime }), ext };
 }
