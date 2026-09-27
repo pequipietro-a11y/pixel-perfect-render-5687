@@ -21,6 +21,8 @@ interface Props {
   onTogglePlay: () => void;
   onStop: () => void;
   onToggleLoop: () => void;
+  onAddKeyframe: () => void;
+  onDeleteKeyframe: () => void;
   onFps: (fps: number) => void;
   onDuration: (d: number) => void;
   onMoveKeyframe: (
@@ -48,6 +50,8 @@ export function Timeline(props: Props) {
     onTogglePlay,
     onStop,
     onToggleLoop,
+    onAddKeyframe,
+    onDeleteKeyframe,
     onFps,
     onDuration,
     onMoveKeyframe,
@@ -83,6 +87,22 @@ export function Timeline(props: Props) {
           style={loop ? { borderColor: "var(--color-primary)" } : undefined}
         >
           Loop {loop ? "on" : "off"}
+        </button>
+        <button
+          className="tool-btn"
+          disabled={!selectedId}
+          onClick={onAddKeyframe}
+          title="Adiciona keyframe em todas as propriedades da camada selecionada"
+        >
+          + Keyframe
+        </button>
+        <button
+          className="tool-btn"
+          disabled={!selectedId}
+          onClick={onDeleteKeyframe}
+          title="Exclui os keyframes da camada selecionada no tempo atual"
+        >
+          − Keyframe
         </button>
         <span className="ml-1 font-mono text-sm text-primary">
           {formatTime(time, fps)}

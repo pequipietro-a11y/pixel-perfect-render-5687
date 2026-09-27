@@ -166,11 +166,12 @@ export function Inspector({
           <>
             <label className="block text-xs text-muted-foreground">
               Texto
-              <input
+              <textarea
                 value={layer.text ?? ""}
                 onChange={(e) =>
                   onUpdateLayer(layer.id, { text: e.target.value })
                 }
+                rows={2}
                 className="num-field mt-1 font-sans"
               />
             </label>

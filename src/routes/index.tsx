@@ -4,7 +4,9 @@ import { CanvasStage } from "@/components/motion/CanvasStage";
 import { Inspector } from "@/components/motion/Inspector";
 import { LayersPanel } from "@/components/motion/LayersPanel";
 import { Timeline } from "@/components/motion/Timeline";
+import { exportVideo, type Background } from "@/lib/render";
 import {
+  PROP_KEYS,
   createLayer,
   sampleLayer,
   snapToFrame,
@@ -47,6 +49,8 @@ function Editor() {
   const [playing, setPlaying] = useState(false);
   const [loop, setLoop] = useState(true);
   const [zoom, setZoom] = useState(0.7);
+  const [background, setBackground] = useState<Background>({ color: "#1b2230" });
+  const [exporting, setExporting] = useState<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
@@ -194,13 +198,76 @@ function Editor() {
   const importImage = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const layer = createLayer("image", layers.length);
-      layer.src = String(reader.result);
-      layer.name = file.name;
-      setLayers((ls) => [layer, ...ls]);
-      setSelectedId(layer.id);
+      const src = String(reader.result);
+      const img = new Image();
+      img.onload = () => {
+        const layer = createLayer("image", layers.length);
+        const s = Math.min(1, 500 / Math.max(img.width, img.height));
+        layer.src = src;
+        layer.name = file.name;
+        layer.width = Math.round(img.width * s);
+        layer.height = Math.round(img.height * s);
+        layer.radius = 0;
+        setLayers((ls) => [layer, ...ls]);
+        setSelectedId(layer.id);
+      };
+      img.src = src;
     };
     reader.readAsDataURL(file);
+  };
+
+  const keyframeAll = (add: boolean) => {
+    if (!selectedId) return;
+    patchLayer(selectedId, (l) => {
+      const t = snapToFrame(time, fps);
+      const v = sampleLayer(l, t);
+      const tracks = { ...l.tracks };
+      for (const key of PROP_KEYS) {
+        const rest = l.tracks[key].filter((k) => Math.abs(k.time - t) >= 1e-3);
+        tracks[key] = add
+          ? [
+              ...rest,
+              { id: uid("k"), time: t, value: v[key], easing: "easyEase" as EasingName },
+            ].sort((a, b) => a.time - b.time)
+          : rest;
+      }
+      return { ...l, tracks };
+    });
+  };
+
+  const editText = (id: string) => {
+    const l = layers.find((x) => x.id === id);
+    if (!l) return;
+    const txt = window.prompt("Novo texto:", l.text ?? "");
+    if (txt !== null) updateLayer(id, { text: txt });
+  };
+
+  const exportMp4 = async () => {
+    setPlaying(false);
+    setExporting(0);
+    try {
+      const { blob, ext } = await exportVideo({
+        layers,
+        duration,
+        fps,
+        width: 1280,
+        height: 720,
+        background,
+        onProgress: setExporting,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `animacao.${ext}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      if (ext !== "mp4")
+        alert("Seu navegador não grava MP4; o vídeo foi salvo em WebM. Use o Chrome/Edge atualizado para MP4.");
+    } catch (e) {
+      alert("Falha ao exportar: " + String(e));
+    } finally {
+      setExporting(null);
+    }
   };
 
   const exportProject = () => {
@@ -266,8 +333,55 @@ function Editor() {
               }}
             />
           </label>
+          <label className="tool-btn flex cursor-pointer items-center gap-1">
+            Fundo
+            <input
+              type="color"
+              value={background.color}
+              onChange={(e) =>
+                setBackground((b) => ({ ...b, color: e.target.value }))
+              }
+              className="h-4 w-5 cursor-pointer border-0 bg-transparent p-0"
+            />
+          </label>
+          <label className="tool-btn cursor-pointer">
+            Imagem de fundo
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  const r = new FileReader();
+                  r.onload = () =>
+                    setBackground((b) => ({ ...b, image: String(r.result) }));
+                  r.readAsDataURL(f);
+                }
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {background.image && (
+            <button
+              className="tool-btn"
+              onClick={() => setBackground((b) => ({ ...b, image: undefined }))}
+            >
+              Remover fundo
+            </button>
+          )}
           <button className="tool-btn" onClick={exportProject}>
             Salvar projeto
+          </button>
+          <button
+            className="tool-btn"
+            disabled={exporting !== null}
+            style={{ borderColor: "var(--color-primary)" }}
+            onClick={exportMp4}
+          >
+            {exporting !== null
+              ? `Exportando ${Math.round(exporting * 100)}%`
+              : "Exportar MP4"}
           </button>
         </div>
       </header>
@@ -315,6 +429,8 @@ function Editor() {
               selectedId={selectedId}
               onSelect={setSelectedId}
               onMove={moveLayer}
+              background={background}
+              onEditText={editText}
             />
           </div>
           <div className="h-72 shrink-0 border-t border-border">
@@ -337,6 +453,8 @@ function Editor() {
                 setTime(0);
               }}
               onToggleLoop={() => setLoop((l) => !l)}
+              onAddKeyframe={() => keyframeAll(true)}
+              onDeleteKeyframe={() => keyframeAll(false)}
               onFps={setFps}
               onDuration={setDuration}
               onMoveKeyframe={(layerId, key, kfId, t) =>
