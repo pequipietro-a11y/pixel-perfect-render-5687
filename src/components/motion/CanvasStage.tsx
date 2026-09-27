@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { sampleLayer, type Layer } from "@/lib/motion";
+import type { Background } from "@/lib/render";
 
 interface Props {
   layers: Layer[];
@@ -8,8 +9,10 @@ interface Props {
   width: number;
   height: number;
   selectedId: string | null;
+  background: Background;
   onSelect: (id: string | null) => void;
   onMove: (id: string, dx: number, dy: number) => void;
+  onEditText?: (id: string) => void;
 }
 
 export function CanvasStage({
@@ -19,8 +22,10 @@ export function CanvasStage({
   width,
   height,
   selectedId,
+  background,
   onSelect,
   onMove,
+  onEditText,
 }: Props) {
   const dragRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -54,7 +59,7 @@ export function CanvasStage({
       onPointerDown={() => onSelect(null)}
     >
       <div
-        className="relative shadow-2xl"
+        className="relative overflow-hidden shadow-2xl"
         style={{
           width: width * zoom,
           height: height * zoom,
@@ -63,8 +68,13 @@ export function CanvasStage({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       >
-        <div className="checker absolute inset-0 opacity-30" />
-        <div className="absolute inset-0 bg-card/80" />
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundColor: background.color,
+            backgroundImage: background.image ? `url(${background.image})` : undefined,
+          }}
+        />
         <div
           className="absolute left-1/2 top-1/2 origin-center"
           style={{ transform: `scale(${zoom})` }}
@@ -89,8 +99,11 @@ export function CanvasStage({
               <div
                 key={layer.id}
                 onPointerDown={(e) => handlePointerDown(e, layer.id)}
+                onDoubleClick={() => layer.kind === "text" && onEditText?.(layer.id)}
                 className={`absolute cursor-move select-none ${
-                  selected ? "outline outline-2 outline-primary" : ""
+                  selected && layer.kind !== "image"
+                    ? "outline outline-2 outline-primary"
+                    : ""
                 } ${dragging && selected ? "" : "transition-none"}`}
                 style={{
                   width: layer.width,
@@ -105,7 +118,7 @@ export function CanvasStage({
               >
                 {layer.kind === "text" ? (
                   <div
-                    className="flex h-full w-full items-center justify-center text-center font-display font-bold"
+                    className="flex h-full w-full items-center justify-center whitespace-nowrap text-center font-display font-bold"
                     style={{ color: layer.color, fontSize: layer.fontSize }}
                   >
                     {layer.text}
@@ -115,8 +128,7 @@ export function CanvasStage({
                     src={layer.src}
                     alt={layer.name}
                     draggable={false}
-                    className="h-full w-full object-cover"
-                    style={{ borderRadius: layer.radius }}
+                    className="h-full w-full object-contain"
                   />
                 ) : (
                   <div
