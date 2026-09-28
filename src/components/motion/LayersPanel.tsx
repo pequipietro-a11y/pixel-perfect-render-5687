@@ -9,6 +9,7 @@ interface Props {
   onDelete: (id: string) => void;
   onReorder: (id: string, dir: -1 | 1) => void;
   onImportImage: (file: File) => void;
+  onImport3D: (file: File) => void;
 }
 
 export function LayersPanel({
@@ -20,6 +21,7 @@ export function LayersPanel({
   onDelete,
   onReorder,
   onImportImage,
+  onImport3D,
 }: Props) {
   return (
     <div className="flex h-full flex-col gap-3 overflow-hidden p-3">
