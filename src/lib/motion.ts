@@ -73,7 +73,7 @@ export interface Keyframe {
   easing: EasingName; // easing towards the NEXT keyframe
 }
 
-export type LayerKind = "rect" | "ellipse" | "text" | "image";
+export type LayerKind = "rect" | "ellipse" | "text" | "image" | "model3d";
 
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay";
 
@@ -91,6 +91,10 @@ export interface Layer {
   text?: string | undefined;
   fontSize?: number | undefined;
   src?: string | undefined;
+  modelFormat?: ("glb" | "gltf" | "obj") | undefined;
+  rotX?: number | undefined;
+  rotY?: number | undefined;
+  rotZ?: number | undefined;
   width: number;
   height: number;
   radius: number;
@@ -234,14 +238,16 @@ export function createLayer(kind: LayerKind, index: number): Layer {
           ? `Elipse ${index + 1}`
           : kind === "image"
             ? `Imagem ${index + 1}`
-            : `Forma ${index + 1}`,
+            : kind === "model3d"
+              ? `Objeto 3D ${index + 1}`
+              : `Forma ${index + 1}`,
     kind,
     color,
     text: isText ? "Motion" : undefined,
     fontSize: isText ? 72 : undefined,
-    width: isText ? 360 : 200,
-    height: isText ? 96 : 200,
-    radius: kind === "ellipse" ? 999 : 16,
+    width: isText ? 360 : kind === "model3d" ? 320 : 200,
+    height: isText ? 96 : kind === "model3d" ? 320 : 200,
+    radius: kind === "ellipse" ? 999 : kind === "model3d" ? 0 : 16,
     blend: "normal",
     visible: true,
     effects: { blur: 0, glow: 0, shadow: 0 },

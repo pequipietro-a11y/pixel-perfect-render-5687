@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { sampleLayer, type Layer } from "@/lib/motion";
 import type { Background } from "@/lib/render";
+import { Model3DView } from "./Model3DView";
 
 interface Props {
   layers: Layer[];
@@ -101,7 +102,7 @@ export function CanvasStage({
                 onPointerDown={(e) => handlePointerDown(e, layer.id)}
                 onDoubleClick={() => layer.kind === "text" && onEditText?.(layer.id)}
                 className={`absolute cursor-move select-none ${
-                  selected && layer.kind !== "image"
+                  selected && layer.kind !== "image" && layer.kind !== "model3d"
                     ? "outline outline-2 outline-primary"
                     : ""
                 } ${dragging && selected ? "" : "transition-none"}`}
@@ -129,6 +130,16 @@ export function CanvasStage({
                     alt={layer.name}
                     draggable={false}
                     className="h-full w-full object-contain"
+                  />
+                ) : layer.kind === "model3d" && layer.src ? (
+                  <Model3DView
+                    src={layer.src}
+                    format={layer.modelFormat ?? "glb"}
+                    width={layer.width}
+                    height={layer.height}
+                    rotX={layer.rotX ?? 0}
+                    rotY={layer.rotY ?? 0}
+                    rotZ={layer.rotZ ?? 0}
                   />
                 ) : (
                   <div

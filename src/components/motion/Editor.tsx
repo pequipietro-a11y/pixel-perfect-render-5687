@@ -194,6 +194,39 @@ export function Editor() {
     reader.readAsDataURL(file);
   };
 
+  /** Adds an image layer from a cropped piece (used by the crop tool). */
+  const addImageLayer = (src: string, w: number, h: number, name: string) => {
+    const layer = createLayer("image", layers.length);
+    const s = Math.min(1, 500 / Math.max(w, h));
+    layer.src = src;
+    layer.name = name;
+    layer.width = Math.max(1, Math.round(w * s));
+    layer.height = Math.max(1, Math.round(h * s));
+    layer.radius = 0;
+    setLayers((ls) => [layer, ...ls]);
+    setSelectedId(layer.id);
+  };
+
+  /** Imports a 3D model (.glb/.gltf/.obj) as a model3d layer. */
+  const import3D = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = String(reader.result);
+      const layer = createLayer("model3d", layers.length);
+      const lower = file.name.toLowerCase();
+      layer.src = src;
+      layer.modelFormat = lower.endsWith(".obj")
+        ? "obj"
+        : lower.endsWith(".gltf")
+          ? "gltf"
+          : "glb";
+      layer.name = file.name;
+      setLayers((ls) => [layer, ...ls]);
+      setSelectedId(layer.id);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const keyframeAll = (add: boolean) => {
     if (!selectedId) return;
     patchLayer(selectedId, (l) => {
@@ -402,6 +435,7 @@ export function Editor() {
               })
             }
             onImportImage={importImage}
+            onImport3D={import3D}
           />
         </aside>
 
@@ -476,6 +510,7 @@ export function Editor() {
             onSetValue={setValue}
             onToggleKeyframe={toggleKeyframe}
             onSetEasing={setEasing}
+            onSplitImage={addImageLayer}
           />
         </aside>
       </div>
