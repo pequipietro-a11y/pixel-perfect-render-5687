@@ -50,6 +50,19 @@ export function LayersPanel({
               }}
             />
           </label>
+          <label className="tool-btn cursor-pointer">
+            Objeto 3D
+            <input
+              type="file"
+              accept=".glb,.gltf,.obj"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onImport3D(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
         </div>
       </div>
 
