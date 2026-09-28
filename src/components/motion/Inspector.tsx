@@ -10,6 +10,7 @@ import {
   type PropKey,
 } from "@/lib/motion";
 import { GraphEditor } from "./GraphEditor";
+import { ImageCropTool } from "./ImageCropTool";
 
 interface Props {
   layer: Layer | null;
@@ -18,6 +19,7 @@ interface Props {
   onSetValue: (id: string, key: PropKey, value: number) => void;
   onToggleKeyframe: (id: string, key: PropKey) => void;
   onSetEasing: (id: string, key: PropKey, easing: EasingName) => void;
+  onSplitImage: (src: string, w: number, h: number, name: string) => void;
 }
 
 const BLENDS: { value: BlendMode; label: string }[] = [
@@ -34,6 +36,7 @@ export function Inspector({
   onSetValue,
   onToggleKeyframe,
   onSetEasing,
+  onSplitImage,
 }: Props) {
   const [graphProp, setGraphProp] = useState<PropKey>("x");
 
@@ -188,21 +191,23 @@ export function Inspector({
             </label>
           </>
         )}
-        {layer.kind !== "ellipse" && layer.kind !== "text" && (
-          <label className="block text-xs text-muted-foreground">
-            Cantos arredondados
-            <input
-              type="range"
-              min={0}
-              max={120}
-              value={layer.radius}
-              onChange={(e) =>
-                onUpdateLayer(layer.id, { radius: Number(e.target.value) })
-              }
-              className="mt-1 w-full accent-[var(--color-primary)]"
-            />
-          </label>
-        )}
+        {layer.kind !== "ellipse" &&
+          layer.kind !== "text" &&
+          layer.kind !== "model3d" && (
+            <label className="block text-xs text-muted-foreground">
+              Cantos arredondados
+              <input
+                type="range"
+                min={0}
+                max={120}
+                value={layer.radius}
+                onChange={(e) =>
+                  onUpdateLayer(layer.id, { radius: Number(e.target.value) })
+                }
+                className="mt-1 w-full accent-[var(--color-primary)]"
+              />
+            </label>
+          )}
         <label className="block text-xs text-muted-foreground">
           Modo de mesclagem
           <select
@@ -220,6 +225,46 @@ export function Inspector({
           </select>
         </label>
       </div>
+
+      {layer.kind === "image" && layer.src && (
+        <ImageCropTool
+          layer={layer}
+          onSplit={onSplitImage}
+          onUpdateLayer={onUpdateLayer}
+        />
+      )}
+
+      {layer.kind === "model3d" && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Rotação 3D
+          </h3>
+          {(
+            [
+              ["rotX", "Eixo X"],
+              ["rotY", "Eixo Y"],
+              ["rotZ", "Eixo Z"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="block text-xs text-muted-foreground">
+              <span className="flex justify-between">
+                {label}
+                <span className="font-mono">{layer[key] ?? 0}°</span>
+              </span>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                value={layer[key] ?? 0}
+                onChange={(e) =>
+                  onUpdateLayer(layer.id, { [key]: Number(e.target.value) })
+                }
+                className="mt-1 w-full accent-[var(--color-primary)]"
+              />
+            </label>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-2 border-t border-border pt-3">
         <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
