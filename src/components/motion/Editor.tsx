@@ -4,6 +4,7 @@ import { Inspector } from "@/components/motion/Inspector";
 import { LayersPanel } from "@/components/motion/LayersPanel";
 import { Timeline } from "@/components/motion/Timeline";
 import { export3D } from "@/lib/export3d";
+import { removeConnectedPngBackground } from "@/lib/imageProcessing";
 import { exportVideo, type Background } from "@/lib/render";
 import {
   PROP_KEYS,
@@ -178,10 +179,12 @@ export function Editor() {
     reader.onload = () => {
       const src = String(reader.result);
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         const layer = createLayer("image", layers.length);
         const s = Math.min(1, 500 / Math.max(img.width, img.height));
-        layer.src = src;
+        layer.src = file.name.toLowerCase().endsWith(".png")
+          ? await removeConnectedPngBackground(src)
+          : src;
         layer.name = file.name;
         layer.width = Math.round(img.width * s);
         layer.height = Math.round(img.height * s);
