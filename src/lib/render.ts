@@ -193,7 +193,18 @@ export async function exportVideo(opts: {
   const mime = types.find((t) => MediaRecorder.isTypeSupported(t)) ?? "video/webm";
   const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
 
-  drawFrame(ctx, width, height, layers, 0, background, images);
+  const models = new Map<string, HTMLCanvasElement>();
+  for (const l of layers) {
+    if (l.kind !== "model3d" || !l.src || models.has(l.src)) continue;
+    try {
+      const mc = await renderModelToCanvas(l);
+      if (mc) models.set(l.src, mc);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  drawFrame(ctx, width, height, layers, 0, background, images, models);
   const stream = canvas.captureStream(fps);
   const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
   const chunks: Blob[] = [];
@@ -205,7 +216,7 @@ export async function exportVideo(opts: {
     const start = performance.now();
     const tick = () => {
       const t = (performance.now() - start) / 1000;
-      drawFrame(ctx, width, height, layers, Math.min(t, duration), background, images);
+      drawFrame(ctx, width, height, layers, Math.min(t, duration), background, images, models);
       onProgress?.(Math.min(1, t / duration));
       if (t >= duration) resolve();
       else requestAnimationFrame(tick);
