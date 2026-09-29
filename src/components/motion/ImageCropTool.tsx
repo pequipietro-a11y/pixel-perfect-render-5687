@@ -32,6 +32,7 @@ export function ImageCropTool({ layer, onSplit, onUpdateLayer }: Props) {
       setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
       setSel(null);
     };
+    if (!layer.src) return;
     img.src = layer.src;
   }, [layer.src]);
 
