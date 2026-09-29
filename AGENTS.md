@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep destructive image editing in browser-side canvas helpers so imported assets remain local and exports receive flattened transparent PNG data URLs.
