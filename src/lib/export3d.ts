@@ -43,6 +43,33 @@ export async function export3D(layers: Layer[], time: number, depth = 40) {
     });
   };
 
+  const loadVideoTex = (src: string) =>
+    new Promise<InstanceType<typeof THREE.Texture>>((res, rej) => {
+      const video = document.createElement("video");
+      video.muted = true;
+      video.preload = "auto";
+      video.onloadeddata = () => {
+        const target = Number.isFinite(video.duration) && video.duration > 0
+          ? time % video.duration
+          : 0;
+        const finish = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(2, video.videoWidth);
+          canvas.height = Math.max(2, video.videoHeight);
+          canvas.getContext("2d")?.drawImage(video, 0, 0);
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          res(texture);
+        };
+        if (target > 0) {
+          video.addEventListener("seeked", finish, { once: true });
+          video.currentTime = target;
+        } else finish();
+      };
+      video.onerror = rej;
+      video.src = src;
+    });
+
   const ordered = [...layers].reverse();
   for (let i = 0; i < ordered.length; i++) {
     const layer = ordered[i];
@@ -88,8 +115,11 @@ export async function export3D(layers: Layer[], time: number, depth = 40) {
         }),
       );
     } else {
-      const map =
-        layer.kind === "image" && layer.src ? await loadTex(layer.src) : await textTexture(layer);
+      const map = layer.kind === "video" && layer.src
+        ? await loadVideoTex(layer.src)
+        : layer.kind === "image" && layer.src
+          ? await loadTex(layer.src)
+          : await textTexture(layer);
       mesh = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h),
         new THREE.MeshBasicMaterial({ map, transparent: true, opacity, side: THREE.DoubleSide }),
@@ -98,7 +128,11 @@ export async function export3D(layers: Layer[], time: number, depth = 40) {
     mesh.name = layer.name;
     mesh.scale.set((v.scaleX / 100) * S, (v.scaleY / 100) * S, S);
     mesh.position.set(v.x * S, -v.y * S, i * 0.05);
-    mesh.rotation.z = (-v.rotation * Math.PI) / 180;
+    mesh.rotation.set(
+      (v.rotX * Math.PI) / 180,
+      (v.rotY * Math.PI) / 180,
+      (-(v.rotation + v.rotZ) * Math.PI) / 180,
+    );
     scene.add(mesh);
   }
 

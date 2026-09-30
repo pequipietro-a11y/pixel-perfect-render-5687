@@ -14,6 +14,29 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function loadVideo(src: string): Promise<HTMLVideoElement> {
+  return new Promise((res, rej) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.preload = "auto";
+    video.onloadeddata = () => res(video);
+    video.onerror = rej;
+    video.src = src;
+    video.load();
+  });
+}
+
+function seekVideo(video: HTMLVideoElement, time: number): Promise<void> {
+  if (!Number.isFinite(video.duration) || video.duration <= 0) return Promise.resolve();
+  const target = time % video.duration;
+  if (Math.abs(video.currentTime - target) < 1 / 120) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => resolve();
+    video.addEventListener("seeked", done, { once: true });
+    video.currentTime = target;
+  });
+}
+
 function containRect(iw: number, ih: number, w: number, h: number) {
   const s = Math.min(w / iw, h / ih);
   return { w: iw * s, h: ih * s };
@@ -84,6 +107,7 @@ function drawFrame(
   bg: Background,
   images: Map<string, HTMLImageElement>,
   models: Map<string, HTMLCanvasElement>,
+  videos: Map<string, HTMLVideoElement>,
 ) {
   ctx.save();
   ctx.globalAlpha = 1;
@@ -105,18 +129,20 @@ function drawFrame(
     const v = sampleLayer(layer, time);
     ctx.save();
     ctx.translate(W / 2 + v.x, H / 2 + v.y);
-    ctx.rotate((v.rotation * Math.PI) / 180);
-    ctx.scale(v.scaleX / 100, v.scaleY / 100);
+    ctx.rotate(((v.rotation + v.rotZ) * Math.PI) / 180);
+    const perspectiveX = Math.max(0.02, Math.abs(Math.cos((v.rotY * Math.PI) / 180)));
+    const perspectiveY = Math.max(0.02, Math.abs(Math.cos((v.rotX * Math.PI) / 180)));
+    ctx.scale((v.scaleX / 100) * perspectiveX, (v.scaleY / 100) * perspectiveY);
     ctx.globalAlpha = Math.max(0, Math.min(1, v.opacity / 100));
     ctx.globalCompositeOperation =
       layer.blend === "normal" ? "source-over" : layer.blend;
     const f: string[] = [];
-    if (layer.effects.blur) f.push(`blur(${layer.effects.blur}px)`);
-    if (layer.effects.glow)
-      f.push(`drop-shadow(0 0 ${layer.effects.glow}px ${layer.color})`);
-    if (layer.effects.shadow)
+    if (v.blur) f.push(`blur(${v.blur}px)`);
+    if (v.glow)
+      f.push(`drop-shadow(0 0 ${v.glow}px ${layer.color})`);
+    if (v.shadow)
       f.push(
-        `drop-shadow(0 ${layer.effects.shadow}px ${layer.effects.shadow * 1.4}px rgba(0,0,0,0.55))`,
+        `drop-shadow(0 ${v.shadow}px ${v.shadow * 1.4}px rgba(0,0,0,0.55))`,
       );
     ctx.filter = f.length ? f.join(" ") : "none";
     const w = layer.width;
@@ -132,6 +158,12 @@ function drawFrame(
       if (img) {
         const r = containRect(img.width, img.height, w, h);
         ctx.drawImage(img, -r.w / 2, -r.h / 2, r.w, r.h);
+      }
+    } else if (layer.kind === "video") {
+      const video = layer.src ? videos.get(layer.src) : undefined;
+      if (video) {
+        const r = containRect(video.videoWidth, video.videoHeight, w, h);
+        ctx.drawImage(video, -r.w / 2, -r.h / 2, r.w, r.h);
       }
     } else if (layer.kind === "model3d") {
       const mc = layer.src ? models.get(layer.src) : undefined;
@@ -177,6 +209,20 @@ export async function exportVideo(opts: {
   );
   await document.fonts?.ready;
 
+  const videos = new Map<string, HTMLVideoElement>();
+  const videoSrcs = layers
+    .filter((l) => l.kind === "video" && l.src)
+    .map((l) => l.src as string);
+  await Promise.all(
+    videoSrcs.map(async (src) => {
+      try {
+        videos.set(src, await loadVideo(src));
+      } catch {
+        /* ignore */
+      }
+    }),
+  );
+
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -204,7 +250,8 @@ export async function exportVideo(opts: {
     }
   }
 
-  drawFrame(ctx, width, height, layers, 0, background, images, models);
+  await Promise.all([...videos.values()].map((video) => seekVideo(video, 0)));
+  drawFrame(ctx, width, height, layers, 0, background, images, models, videos);
   const stream = canvas.captureStream(fps);
   const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
   const chunks: Blob[] = [];
@@ -214,14 +261,16 @@ export async function exportVideo(opts: {
 
   await new Promise<void>((resolve) => {
     const start = performance.now();
-    const tick = () => {
+     const tick = async () => {
       const t = (performance.now() - start) / 1000;
-      drawFrame(ctx, width, height, layers, Math.min(t, duration), background, images, models);
+       const frameTime = Math.min(t, duration);
+       await Promise.all([...videos.values()].map((video) => seekVideo(video, frameTime)));
+       drawFrame(ctx, width, height, layers, frameTime, background, images, models, videos);
       onProgress?.(Math.min(1, t / duration));
       if (t >= duration) resolve();
-      else requestAnimationFrame(tick);
+       else requestAnimationFrame(() => void tick());
     };
-    requestAnimationFrame(tick);
+     requestAnimationFrame(() => void tick());
   });
   rec.stop();
   await done;

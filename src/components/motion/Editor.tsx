@@ -94,14 +94,15 @@ export function Editor() {
     (id: string, key: PropKey, value: number) =>
       patchLayer(id, (l) => {
         const t = snapToFrame(time, fps);
-        if (!l.tracks[key].length) {
+        const currentTrack = l.tracks[key] ?? [];
+        if (!currentTrack.length) {
           return { ...l, base: { ...l.base, [key]: value } };
         }
-        const existing = l.tracks[key].find((k) => Math.abs(k.time - t) < 1e-3);
+        const existing = currentTrack.find((k) => Math.abs(k.time - t) < 1e-3);
         const track = existing
-          ? l.tracks[key].map((k) => (k.id === existing.id ? { ...k, value } : k))
+          ? currentTrack.map((k) => (k.id === existing.id ? { ...k, value } : k))
           : [
-              ...l.tracks[key],
+              ...currentTrack,
               { id: uid("k"), time: t, value, easing: "easyEase" as EasingName },
             ].sort((a, b) => a.time - b.time);
         return { ...l, tracks: { ...l.tracks, [key]: track } };
@@ -113,13 +114,14 @@ export function Editor() {
     (id: string, key: PropKey) =>
       patchLayer(id, (l) => {
         const t = snapToFrame(time, fps);
-        const existing = l.tracks[key].find((k) => Math.abs(k.time - t) < 1e-3);
+        const currentTrack = l.tracks[key] ?? [];
+        const existing = currentTrack.find((k) => Math.abs(k.time - t) < 1e-3);
         if (existing) {
           return {
             ...l,
             tracks: {
               ...l.tracks,
-              [key]: l.tracks[key].filter((k) => k.id !== existing.id),
+              [key]: currentTrack.filter((k) => k.id !== existing.id),
             },
           };
         }
@@ -129,7 +131,7 @@ export function Editor() {
           tracks: {
             ...l.tracks,
             [key]: [
-              ...l.tracks[key],
+              ...currentTrack,
               { id: uid("k"), time: t, value, easing: "easyEase" as EasingName },
             ].sort((a, b) => a.time - b.time),
           },
@@ -141,14 +143,14 @@ export function Editor() {
   const setEasing = useCallback(
     (id: string, key: PropKey, easing: EasingName) =>
       patchLayer(id, (l) => {
-        const sorted = [...l.tracks[key]].sort((a, b) => a.time - b.time);
+        const sorted = [...(l.tracks[key] ?? [])].sort((a, b) => a.time - b.time);
         const active = sorted.filter((k) => k.time <= time + 1e-6).pop();
         if (!active) return l;
         return {
           ...l,
           tracks: {
             ...l.tracks,
-            [key]: l.tracks[key].map((k) =>
+            [key]: (l.tracks[key] ?? []).map((k) =>
               k.id === active.id ? { ...k, easing } : k,
             ),
           },
@@ -197,6 +199,25 @@ export function Editor() {
     reader.readAsDataURL(file);
   };
 
+  const importVideo = (file: File) => {
+    const src = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      const layer = createLayer("video", layers.length);
+      const s = Math.min(1, 560 / Math.max(video.videoWidth, video.videoHeight));
+      layer.src = src;
+      layer.name = file.name;
+      layer.width = Math.max(1, Math.round(video.videoWidth * s));
+      layer.height = Math.max(1, Math.round(video.videoHeight * s));
+      layer.radius = 0;
+      setLayers((ls) => [layer, ...ls]);
+      setSelectedId(layer.id);
+    };
+    video.onerror = () => URL.revokeObjectURL(src);
+    video.src = src;
+  };
+
   /** Adds an image layer from a cropped piece (used by the crop tool). */
   const addImageLayer = (src: string, w: number, h: number, name: string) => {
     const layer = createLayer("image", layers.length);
@@ -237,7 +258,7 @@ export function Editor() {
       const v = sampleLayer(l, t);
       const tracks = { ...l.tracks };
       for (const key of PROP_KEYS) {
-        const rest = l.tracks[key].filter((k) => Math.abs(k.time - t) >= 1e-3);
+        const rest = (l.tracks[key] ?? []).filter((k) => Math.abs(k.time - t) >= 1e-3);
         tracks[key] = add
           ? [
               ...rest,
@@ -302,7 +323,24 @@ export function Editor() {
     reader.onload = () => {
       try {
         const data = JSON.parse(String(reader.result));
-        if (Array.isArray(data.layers)) setLayers(data.layers);
+        if (Array.isArray(data.layers)) {
+          setLayers(
+            data.layers.map((layer: Layer) => ({
+              ...layer,
+              base: {
+                ...createLayer(layer.kind, 0).base,
+                blur: layer.effects?.blur ?? 0,
+                glow: layer.effects?.glow ?? 0,
+                shadow: layer.effects?.shadow ?? 0,
+                rotX: layer.rotX ?? 0,
+                rotY: layer.rotY ?? 0,
+                rotZ: layer.rotZ ?? 0,
+                ...layer.base,
+              },
+              tracks: { ...createLayer(layer.kind, 0).tracks, ...layer.tracks },
+            })),
+          );
+        }
         if (data.fps) setFps(data.fps);
         if (data.duration) setDuration(data.duration);
         setTime(0);
@@ -438,6 +476,7 @@ export function Editor() {
               })
             }
             onImportImage={importImage}
+            onImportVideo={importVideo}
             onImport3D={import3D}
           />
         </aside>
@@ -455,6 +494,7 @@ export function Editor() {
               onMove={moveLayer}
               background={background}
               onEditText={editText}
+              playing={playing}
             />
           </div>
           <div className="h-72 shrink-0 border-t border-border">
@@ -486,7 +526,7 @@ export function Editor() {
                   ...l,
                   tracks: {
                     ...l.tracks,
-                    [key]: l.tracks[key]
+                    [key]: (l.tracks[key] ?? [])
                       .map((k) => (k.id === kfId ? { ...k, time: t } : k))
                       .sort((a, b) => a.time - b.time),
                   },
@@ -497,7 +537,7 @@ export function Editor() {
                   ...l,
                   tracks: {
                     ...l.tracks,
-                    [key]: l.tracks[key].filter((k) => k.id !== kfId),
+                    [key]: (l.tracks[key] ?? []).filter((k) => k.id !== kfId),
                   },
                 }))
               }

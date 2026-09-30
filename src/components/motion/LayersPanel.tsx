@@ -9,6 +9,7 @@ interface Props {
   onDelete: (id: string) => void;
   onReorder: (id: string, dir: -1 | 1) => void;
   onImportImage: (file: File) => void;
+  onImportVideo: (file: File) => void;
   onImport3D: (file: File) => void;
 }
 
@@ -21,6 +22,7 @@ export function LayersPanel({
   onDelete,
   onReorder,
   onImportImage,
+  onImportVideo,
   onImport3D,
 }: Props) {
   return (
@@ -61,6 +63,19 @@ export function LayersPanel({
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) onImport3D(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <label className="tool-btn cursor-pointer">
+            Vídeo
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onImportVideo(f);
                 e.target.value = "";
               }}
             />

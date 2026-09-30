@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { sampleLayer, type Layer } from "@/lib/motion";
 import type { Background } from "@/lib/render";
 import { Model3DView } from "./Model3DView";
+import { VideoLayerView } from "./VideoLayerView";
 
 interface Props {
   layers: Layer[];
@@ -14,6 +15,7 @@ interface Props {
   onSelect: (id: string | null) => void;
   onMove: (id: string, dx: number, dy: number) => void;
   onEditText?: (id: string) => void;
+  playing?: boolean;
 }
 
 export function CanvasStage({
@@ -27,6 +29,7 @@ export function CanvasStage({
   onSelect,
   onMove,
   onEditText,
+  playing = false,
 }: Props) {
   const dragRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -85,12 +88,12 @@ export function CanvasStage({
             const v = sampleLayer(layer, time);
             const selected = layer.id === selectedId;
             const filters = [
-              layer.effects.blur ? `blur(${layer.effects.blur}px)` : "",
-              layer.effects.glow
-                ? `drop-shadow(0 0 ${layer.effects.glow}px ${layer.color})`
+              v.blur ? `blur(${v.blur}px)` : "",
+              v.glow
+                ? `drop-shadow(0 0 ${v.glow}px ${layer.color})`
                 : "",
-              layer.effects.shadow
-                ? `drop-shadow(0 ${layer.effects.shadow}px ${layer.effects.shadow * 1.4}px rgba(0,0,0,0.55))`
+              v.shadow
+                ? `drop-shadow(0 ${v.shadow}px ${v.shadow * 1.4}px rgba(0,0,0,0.55))`
                 : "",
             ]
               .filter(Boolean)
@@ -114,7 +117,8 @@ export function CanvasStage({
                   opacity: v.opacity / 100,
                   mixBlendMode: layer.blend === "normal" ? undefined : layer.blend,
                   filter: filters || undefined,
-                  transform: `translate(${v.x}px, ${v.y}px) rotate(${v.rotation}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
+                   transform: `perspective(900px) translate3d(${v.x}px, ${v.y}px, 0) rotateX(${v.rotX}deg) rotateY(${v.rotY}deg) rotateZ(${v.rotation + v.rotZ}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
+                   transformStyle: "preserve-3d",
                 }}
               >
                 {layer.kind === "text" ? (
@@ -131,15 +135,17 @@ export function CanvasStage({
                     draggable={false}
                     className="h-full w-full object-contain"
                   />
+                ) : layer.kind === "video" && layer.src ? (
+                  <VideoLayerView src={layer.src} time={time} playing={playing} />
                 ) : layer.kind === "model3d" && layer.src ? (
                   <Model3DView
                     src={layer.src}
                     format={layer.modelFormat ?? "glb"}
                     width={layer.width}
                     height={layer.height}
-                    rotX={layer.rotX ?? 0}
-                    rotY={layer.rotY ?? 0}
-                    rotZ={layer.rotZ ?? 0}
+                     rotX={v.rotX}
+                     rotY={v.rotY}
+                     rotZ={v.rotZ}
                   />
                 ) : (
                   <div

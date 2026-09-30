@@ -6,7 +6,13 @@ export type PropKey =
   | "rotation"
   | "scaleX"
   | "scaleY"
-  | "opacity";
+  | "opacity"
+  | "blur"
+  | "glow"
+  | "shadow"
+  | "rotX"
+  | "rotY"
+  | "rotZ";
 
 export const PROP_KEYS: PropKey[] = [
   "x",
@@ -15,6 +21,12 @@ export const PROP_KEYS: PropKey[] = [
   "scaleX",
   "scaleY",
   "opacity",
+  "blur",
+  "glow",
+  "shadow",
+  "rotX",
+  "rotY",
+  "rotZ",
 ];
 
 export const PROP_LABELS: Record<PropKey, string> = {
@@ -24,6 +36,12 @@ export const PROP_LABELS: Record<PropKey, string> = {
   scaleX: "Escala X",
   scaleY: "Escala Y",
   opacity: "Opacidade",
+  blur: "Desfoque",
+  glow: "Brilho",
+  shadow: "Sombra",
+  rotX: "Rotação 3D X",
+  rotY: "Rotação 3D Y",
+  rotZ: "Rotação 3D Z",
 };
 
 export const PROP_UNITS: Record<PropKey, string> = {
@@ -33,6 +51,12 @@ export const PROP_UNITS: Record<PropKey, string> = {
   scaleX: "%",
   scaleY: "%",
   opacity: "%",
+  blur: "px",
+  glow: "px",
+  shadow: "px",
+  rotX: "°",
+  rotY: "°",
+  rotZ: "°",
 };
 
 export const PROP_STEP: Record<PropKey, number> = {
@@ -42,6 +66,12 @@ export const PROP_STEP: Record<PropKey, number> = {
   scaleX: 1,
   scaleY: 1,
   opacity: 1,
+  blur: 1,
+  glow: 1,
+  shadow: 1,
+  rotX: 1,
+  rotY: 1,
+  rotZ: 1,
 };
 
 export type EasingName =
@@ -73,7 +103,7 @@ export interface Keyframe {
   easing: EasingName; // easing towards the NEXT keyframe
 }
 
-export type LayerKind = "rect" | "ellipse" | "text" | "image" | "model3d";
+export type LayerKind = "rect" | "ellipse" | "text" | "image" | "video" | "model3d";
 
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay";
 
@@ -112,6 +142,12 @@ export const DEFAULT_BASE: Record<PropKey, number> = {
   scaleX: 100,
   scaleY: 100,
   opacity: 100,
+  blur: 0,
+  glow: 0,
+  shadow: 0,
+  rotX: 0,
+  rotY: 0,
+  rotZ: 0,
 };
 
 export function emptyTracks(): Record<PropKey, Keyframe[]> {
@@ -122,6 +158,12 @@ export function emptyTracks(): Record<PropKey, Keyframe[]> {
     scaleX: [],
     scaleY: [],
     opacity: [],
+    blur: [],
+    glow: [],
+    shadow: [],
+    rotX: [],
+    rotY: [],
+    rotZ: [],
   };
 }
 
@@ -205,7 +247,17 @@ export function sampleTrack(
 export function sampleLayer(layer: Layer, time: number) {
   const out = {} as Record<PropKey, number>;
   for (const key of PROP_KEYS) {
-    out[key] = sampleTrack(layer.tracks[key], time, layer.base[key]);
+    const legacyFallback =
+      key === "blur" || key === "glow" || key === "shadow"
+        ? layer.effects[key]
+        : key === "rotX" || key === "rotY" || key === "rotZ"
+          ? (layer[key] ?? DEFAULT_BASE[key])
+          : DEFAULT_BASE[key];
+    out[key] = sampleTrack(
+      layer.tracks[key] ?? [],
+      time,
+      layer.base[key] ?? legacyFallback,
+    );
   }
   return out;
 }
@@ -234,10 +286,12 @@ export function createLayer(kind: LayerKind, index: number): Layer {
     name:
       kind === "text"
         ? `Texto ${index + 1}`
-        : kind === "ellipse"
+          : kind === "ellipse"
           ? `Elipse ${index + 1}`
           : kind === "image"
             ? `Imagem ${index + 1}`
+            : kind === "video"
+              ? `Vídeo ${index + 1}`
             : kind === "model3d"
               ? `Objeto 3D ${index + 1}`
               : `Forma ${index + 1}`,
@@ -245,8 +299,8 @@ export function createLayer(kind: LayerKind, index: number): Layer {
     color,
     text: isText ? "Motion" : undefined,
     fontSize: isText ? 72 : undefined,
-    width: isText ? 360 : kind === "model3d" ? 320 : 200,
-    height: isText ? 96 : kind === "model3d" ? 320 : 200,
+    width: isText ? 360 : kind === "model3d" || kind === "video" ? 320 : 200,
+    height: isText ? 96 : kind === "model3d" || kind === "video" ? 180 : 200,
     radius: kind === "ellipse" ? 999 : kind === "model3d" ? 0 : 16,
     blend: "normal",
     visible: true,
@@ -278,6 +332,7 @@ export function starterProject(): Layer[] {
   b.base.y = 90;
   b.blend = "screen";
   b.effects.glow = 28;
+  b.base.glow = 28;
   b.tracks.scaleX = [
     { id: uid("k"), time: 0.2, value: 40, easing: "back" },
     { id: uid("k"), time: 1.6, value: 130, easing: "easeInOut" },
