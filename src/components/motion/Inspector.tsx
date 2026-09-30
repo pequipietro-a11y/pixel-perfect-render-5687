@@ -69,7 +69,13 @@ export function Inspector({
       </div>
 
       <div className="space-y-1.5">
-        {PROP_KEYS.map((key) => {
+        {PROP_KEYS.filter(
+          (key) =>
+            !key.startsWith("rot") ||
+            layer.kind === "image" ||
+            layer.kind === "video" ||
+            layer.kind === "model3d",
+        ).map((key) => {
           const hasKeys = layer.tracks[key].length > 0;
           const atKey = layer.tracks[key].some(
             (k) => Math.abs(k.time - time) < 1e-3,
@@ -234,69 +240,6 @@ export function Inspector({
         />
       )}
 
-      {layer.kind === "model3d" && (
-        <div className="space-y-2 border-t border-border pt-3">
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Rotação 3D
-          </h3>
-          {(
-            [
-              ["rotX", "Eixo X"],
-              ["rotY", "Eixo Y"],
-              ["rotZ", "Eixo Z"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block text-xs text-muted-foreground">
-              <span className="flex justify-between">
-                {label}
-                <span className="font-mono">{layer[key] ?? 0}°</span>
-              </span>
-              <input
-                type="range"
-                min={-180}
-                max={180}
-                value={layer[key] ?? 0}
-                onChange={(e) =>
-                  onUpdateLayer(layer.id, { [key]: Number(e.target.value) })
-                }
-                className="mt-1 w-full accent-[var(--color-primary)]"
-              />
-            </label>
-          ))}
-        </div>
-      )}
-
-      <div className="space-y-2 border-t border-border pt-3">
-        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Efeitos
-        </h3>
-        {(
-          [
-            ["blur", "Desfoque", 40],
-            ["glow", "Brilho", 80],
-            ["shadow", "Sombra", 60],
-          ] as const
-        ).map(([key, label, max]) => (
-          <label key={key} className="block text-xs text-muted-foreground">
-            <span className="flex justify-between">
-              {label}
-              <span className="font-mono">{layer.effects[key]}</span>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={max}
-              value={layer.effects[key]}
-              onChange={(e) =>
-                onUpdateLayer(layer.id, {
-                  effects: { ...layer.effects, [key]: Number(e.target.value) },
-                })
-              }
-              className="mt-1 w-full accent-[var(--color-primary)]"
-            />
-          </label>
-        ))}
-      </div>
     </div>
   );
 }
