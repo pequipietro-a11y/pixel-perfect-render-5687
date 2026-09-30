@@ -157,7 +157,7 @@ export function Timeline(props: Props) {
                   <span className="truncate">{layer.name}</span>
                 </div>
                 {layer.id === selectedId &&
-                  PROP_KEYS.filter((k) => layer.tracks[k].length > 0).map(
+                   PROP_KEYS.filter((k) => (layer.tracks[k] ?? []).length > 0).map(
                     (k) => (
                       <div
                         key={k}
@@ -205,7 +205,7 @@ export function Timeline(props: Props) {
               {layers.map((layer) => {
                 const rows =
                   layer.id === selectedId
-                    ? PROP_KEYS.filter((k) => layer.tracks[k].length > 0)
+                     ? PROP_KEYS.filter((k) => (layer.tracks[k] ?? []).length > 0)
                     : [];
                 return (
                   <div key={layer.id}>
@@ -214,7 +214,7 @@ export function Timeline(props: Props) {
                         className="absolute inset-y-1.5 left-0 right-0 rounded-sm opacity-25"
                         style={{ background: layer.color }}
                       />
-                      {PROP_KEYS.flatMap((k) => layer.tracks[k]).map((kf) => (
+                       {PROP_KEYS.flatMap((k) => layer.tracks[k] ?? []).map((kf) => (
                         <span
                           key={kf.id}
                           className="absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-foreground/70"
@@ -224,7 +224,7 @@ export function Timeline(props: Props) {
                     </div>
                     {rows.map((k) => (
                       <div key={k} className="relative h-6 border-b border-border">
-                        {layer.tracks[k].map((kf) => (
+                         {(layer.tracks[k] ?? []).map((kf) => (
                           <KeyframeDot
                             key={kf.id}
                             left={(kf.time / duration) * 100}

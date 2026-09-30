@@ -49,7 +49,7 @@ export function Inspector({
   }
 
   const values = sampleLayer(layer, time);
-  const track = layer.tracks[graphProp];
+  const track = layer.tracks[graphProp] ?? [];
   const active = [...track]
     .sort((a, b) => a.time - b.time)
     .filter((k) => k.time <= time + 1e-6)
@@ -76,8 +76,9 @@ export function Inspector({
             layer.kind === "video" ||
             layer.kind === "model3d",
         ).map((key) => {
-          const hasKeys = layer.tracks[key].length > 0;
-          const atKey = layer.tracks[key].some(
+          const propertyTrack = layer.tracks[key] ?? [];
+          const hasKeys = propertyTrack.length > 0;
+          const atKey = propertyTrack.some(
             (k) => Math.abs(k.time - time) < 1e-3,
           );
           return (
