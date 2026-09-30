@@ -89,7 +89,9 @@ export async function export3D(layers: Layer[], time: number, depth = 40) {
       );
     } else {
       const map =
-        layer.kind === "image" && layer.src ? await loadTex(layer.src) : await textTexture(layer);
+        (layer.kind === "image" || layer.kind === "video") && layer.src
+          ? await loadTex(layer.src)
+          : await textTexture(layer);
       mesh = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h),
         new THREE.MeshBasicMaterial({ map, transparent: true, opacity, side: THREE.DoubleSide }),
@@ -98,7 +100,11 @@ export async function export3D(layers: Layer[], time: number, depth = 40) {
     mesh.name = layer.name;
     mesh.scale.set((v.scaleX / 100) * S, (v.scaleY / 100) * S, S);
     mesh.position.set(v.x * S, -v.y * S, i * 0.05);
-    mesh.rotation.z = (-v.rotation * Math.PI) / 180;
+    mesh.rotation.set(
+      (v.rotX * Math.PI) / 180,
+      (v.rotY * Math.PI) / 180,
+      (-(v.rotation + v.rotZ) * Math.PI) / 180,
+    );
     scene.add(mesh);
   }
 
