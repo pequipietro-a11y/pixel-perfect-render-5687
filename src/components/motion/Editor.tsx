@@ -327,7 +327,16 @@ export function Editor() {
           setLayers(
             data.layers.map((layer: Layer) => ({
               ...layer,
-              base: { ...createLayer(layer.kind, 0).base, ...layer.base },
+              base: {
+                ...createLayer(layer.kind, 0).base,
+                blur: layer.effects?.blur ?? 0,
+                glow: layer.effects?.glow ?? 0,
+                shadow: layer.effects?.shadow ?? 0,
+                rotX: layer.rotX ?? 0,
+                rotY: layer.rotY ?? 0,
+                rotZ: layer.rotZ ?? 0,
+                ...layer.base,
+              },
               tracks: { ...createLayer(layer.kind, 0).tracks, ...layer.tracks },
             })),
           );

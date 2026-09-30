@@ -247,10 +247,16 @@ export function sampleTrack(
 export function sampleLayer(layer: Layer, time: number) {
   const out = {} as Record<PropKey, number>;
   for (const key of PROP_KEYS) {
+    const legacyFallback =
+      key === "blur" || key === "glow" || key === "shadow"
+        ? layer.effects[key]
+        : key === "rotX" || key === "rotY" || key === "rotZ"
+          ? (layer[key] ?? DEFAULT_BASE[key])
+          : DEFAULT_BASE[key];
     out[key] = sampleTrack(
       layer.tracks[key] ?? [],
       time,
-      layer.base[key] ?? DEFAULT_BASE[key],
+      layer.base[key] ?? legacyFallback,
     );
   }
   return out;
@@ -326,6 +332,7 @@ export function starterProject(): Layer[] {
   b.base.y = 90;
   b.blend = "screen";
   b.effects.glow = 28;
+  b.base.glow = 28;
   b.tracks.scaleX = [
     { id: uid("k"), time: 0.2, value: 40, easing: "back" },
     { id: uid("k"), time: 1.6, value: 130, easing: "easeInOut" },

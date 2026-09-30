@@ -117,7 +117,7 @@ export function CanvasStage({
                   opacity: v.opacity / 100,
                   mixBlendMode: layer.blend === "normal" ? undefined : layer.blend,
                   filter: filters || undefined,
-                   transform: `translate3d(${v.x}px, ${v.y}px, 0) rotateX(${v.rotX}deg) rotateY(${v.rotY}deg) rotateZ(${v.rotation + v.rotZ}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
+                   transform: `perspective(900px) translate3d(${v.x}px, ${v.y}px, 0) rotateX(${v.rotX}deg) rotateY(${v.rotY}deg) rotateZ(${v.rotation + v.rotZ}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
                    transformStyle: "preserve-3d",
                 }}
               >
