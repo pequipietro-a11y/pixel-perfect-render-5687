@@ -127,24 +127,51 @@ function drawFrame(
   for (const layer of [...layers].reverse()) {
     if (!layer.visible) continue;
     const v = sampleLayer(layer, time);
+    const f: string[] = [];
+    if (v.blur) f.push(`blur(${v.blur}px)`);
+    if (v.glow) f.push(`drop-shadow(0 0 ${v.glow}px ${layer.color})`);
+    if (v.shadow)
+      f.push(`drop-shadow(0 ${v.shadow}px ${v.shadow * 1.4}px rgba(0,0,0,0.55))`);
+    const filter = f.length ? f.join(" ") : "none";
+    const alpha = Math.max(0, Math.min(1, v.opacity / 100));
+    const blend: GlobalCompositeOperation =
+      layer.blend === "normal" ? "source-over" : layer.blend;
+
+    // True 3D perspective for media layers rotated in X/Y.
+    if ((layer.kind === "image" || layer.kind === "video") && (v.rotX || v.rotY)) {
+      const src: CanvasImageSource | undefined =
+        layer.kind === "image"
+          ? layer.src ? images.get(layer.src) : undefined
+          : layer.src ? videos.get(layer.src) : undefined;
+      if (src) {
+        const sw = layer.kind === "image" ? (src as HTMLImageElement).width : (src as HTMLVideoElement).videoWidth;
+        const sh = layer.kind === "image" ? (src as HTMLImageElement).height : (src as HTMLVideoElement).videoHeight;
+        if (sw && sh) {
+          const r = containRect(sw, sh, layer.width, layer.height);
+          const tmp = warpCanvas(W, H);
+          const tctx = tmp.getContext("2d");
+          if (tctx) {
+            tctx.clearRect(0, 0, W, H);
+            drawPerspective(tctx, src, sw, sh, r.w, r.h, v, W, H);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.globalCompositeOperation = blend;
+            ctx.filter = filter;
+            ctx.drawImage(tmp, 0, 0);
+            ctx.restore();
+          }
+        }
+      }
+      continue;
+    }
+
     ctx.save();
     ctx.translate(W / 2 + v.x, H / 2 + v.y);
     ctx.rotate(((v.rotation + v.rotZ) * Math.PI) / 180);
-    const perspectiveX = Math.max(0.02, Math.abs(Math.cos((v.rotY * Math.PI) / 180)));
-    const perspectiveY = Math.max(0.02, Math.abs(Math.cos((v.rotX * Math.PI) / 180)));
-    ctx.scale((v.scaleX / 100) * perspectiveX, (v.scaleY / 100) * perspectiveY);
-    ctx.globalAlpha = Math.max(0, Math.min(1, v.opacity / 100));
-    ctx.globalCompositeOperation =
-      layer.blend === "normal" ? "source-over" : layer.blend;
-    const f: string[] = [];
-    if (v.blur) f.push(`blur(${v.blur}px)`);
-    if (v.glow)
-      f.push(`drop-shadow(0 0 ${v.glow}px ${layer.color})`);
-    if (v.shadow)
-      f.push(
-        `drop-shadow(0 ${v.shadow}px ${v.shadow * 1.4}px rgba(0,0,0,0.55))`,
-      );
-    ctx.filter = f.length ? f.join(" ") : "none";
+    ctx.scale(v.scaleX / 100, v.scaleY / 100);
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = blend;
+    ctx.filter = filter;
     const w = layer.width;
     const h = layer.height;
     if (layer.kind === "text") {
@@ -161,7 +188,7 @@ function drawFrame(
       }
     } else if (layer.kind === "video") {
       const video = layer.src ? videos.get(layer.src) : undefined;
-      if (video) {
+      if (video && video.videoWidth) {
         const r = containRect(video.videoWidth, video.videoHeight, w, h);
         ctx.drawImage(video, -r.w / 2, -r.h / 2, r.w, r.h);
       }
