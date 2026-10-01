@@ -98,6 +98,101 @@ async function renderModelToCanvas(
   return canvas;
 }
 
+let warpTmp: HTMLCanvasElement | null = null;
+function warpCanvas(W: number, H: number) {
+  if (!warpTmp) warpTmp = document.createElement("canvas");
+  if (warpTmp.width !== W) warpTmp.width = W;
+  if (warpTmp.height !== H) warpTmp.height = H;
+  return warpTmp;
+}
+
+/** Projects a rectangle with CSS-like perspective(900px) rotateX/Y/Z and draws it as a triangle mesh. */
+function drawPerspective(
+  ctx: CanvasRenderingContext2D,
+  src: CanvasImageSource,
+  sw: number,
+  sh: number,
+  dw: number,
+  dh: number,
+  v: Record<string, number>,
+  W: number,
+  H: number,
+) {
+  const d = Math.PI / 180;
+  const ax = (v.rotX ?? 0) * d;
+  const ay = (v.rotY ?? 0) * d;
+  const az = ((v.rotation ?? 0) + (v.rotZ ?? 0)) * d;
+  const sx = (v.scaleX ?? 100) / 100;
+  const sy = (v.scaleY ?? 100) / 100;
+  const P = 900;
+  const cx = W / 2 + (v.x ?? 0);
+  const cy = H / 2 + (v.y ?? 0);
+  // CSS order: rotateX, rotateY, rotateZ, scale applied right-to-left to the point.
+  const project = (px: number, py: number): [number, number] => {
+    let x = px * sx;
+    let y = py * sy;
+    let z = 0;
+    // rotateZ
+    [x, y] = [x * Math.cos(az) - y * Math.sin(az), x * Math.sin(az) + y * Math.cos(az)];
+    // rotateY
+    [x, z] = [x * Math.cos(ay) + z * Math.sin(ay), -x * Math.sin(ay) + z * Math.cos(ay)];
+    // rotateX
+    [y, z] = [y * Math.cos(ax) - z * Math.sin(ax), y * Math.sin(ax) + z * Math.cos(ax)];
+    const k = P / Math.max(1, P - z);
+    return [cx + x * k, cy + y * k];
+  };
+  const N = 10;
+  const grid: [number, number][][] = [];
+  for (let j = 0; j <= N; j++) {
+    const row: [number, number][] = [];
+    for (let i = 0; i <= N; i++) row.push(project(-dw / 2 + (dw * i) / N, -dh / 2 + (dh * j) / N));
+    grid.push(row);
+  }
+  const tri = (
+    s0: [number, number], s1: [number, number], s2: [number, number],
+    d0: [number, number], d1: [number, number], d2: [number, number],
+  ) => {
+    // Expand destination triangle slightly to hide seams.
+    const mx = (d0[0] + d1[0] + d2[0]) / 3;
+    const my = (d0[1] + d1[1] + d2[1]) / 3;
+    const ex = (p: [number, number]): [number, number] => {
+      const dx = p[0] - mx, dy = p[1] - my;
+      const l = Math.hypot(dx, dy) || 1;
+      return [p[0] + (dx / l) * 0.6, p[1] + (dy / l) * 0.6];
+    };
+    const [e0, e1, e2] = [ex(d0), ex(d1), ex(d2)];
+    const den = s0[0] * (s1[1] - s2[1]) + s1[0] * (s2[1] - s0[1]) + s2[0] * (s0[1] - s1[1]);
+    if (!den) return;
+    const a = (d0[0] * (s1[1] - s2[1]) + d1[0] * (s2[1] - s0[1]) + d2[0] * (s0[1] - s1[1])) / den;
+    const b = (d0[1] * (s1[1] - s2[1]) + d1[1] * (s2[1] - s0[1]) + d2[1] * (s0[1] - s1[1])) / den;
+    const c = (d0[0] * (s2[0] - s1[0]) + d1[0] * (s0[0] - s2[0]) + d2[0] * (s1[0] - s0[0])) / den;
+    const dd = (d0[1] * (s2[0] - s1[0]) + d1[1] * (s0[0] - s2[0]) + d2[1] * (s1[0] - s0[0])) / den;
+    const e = (d0[0] * (s1[0] * s2[1] - s2[0] * s1[1]) + d1[0] * (s2[0] * s0[1] - s0[0] * s2[1]) + d2[0] * (s0[0] * s1[1] - s1[0] * s0[1])) / den;
+    const f = (d0[1] * (s1[0] * s2[1] - s2[0] * s1[1]) + d1[1] * (s2[0] * s0[1] - s0[0] * s2[1]) + d2[1] * (s0[0] * s1[1] - s1[0] * s0[1])) / den;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(e0[0], e0[1]);
+    ctx.lineTo(e1[0], e1[1]);
+    ctx.lineTo(e2[0], e2[1]);
+    ctx.closePath();
+    ctx.clip();
+    ctx.setTransform(a, b, c, dd, e, f);
+    ctx.drawImage(src, 0, 0, sw, sh);
+    ctx.restore();
+  };
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const u0 = (sw * i) / N, u1 = (sw * (i + 1)) / N;
+      const v0 = (sh * j) / N, v1 = (sh * (j + 1)) / N;
+      const p00 = grid[j]?.[i], p10 = grid[j]?.[i + 1], p01 = grid[j + 1]?.[i], p11 = grid[j + 1]?.[i + 1];
+      if (!p00 || !p10 || !p01 || !p11) continue;
+      tri([u0, v0], [u1, v0], [u0, v1], p00, p10, p01);
+      tri([u1, v0], [u1, v1], [u0, v1], p10, p11, p01);
+    }
+  }
+}
+
+
 function drawFrame(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -285,20 +380,30 @@ export async function exportVideo(opts: {
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const done = new Promise<void>((r) => (rec.onstop = () => r()));
   rec.start();
+  // Play videos in real time instead of seeking every frame (seeking causes stutter).
+  for (const video of videos.values()) {
+    video.loop = true;
+    void video.play().catch(() => undefined);
+  }
 
   await new Promise<void>((resolve) => {
     const start = performance.now();
-     const tick = async () => {
+    const tick = () => {
       const t = (performance.now() - start) / 1000;
-       const frameTime = Math.min(t, duration);
-       await Promise.all([...videos.values()].map((video) => seekVideo(video, frameTime)));
-       drawFrame(ctx, width, height, layers, frameTime, background, images, models, videos);
+      const frameTime = Math.min(t, duration);
+      for (const video of videos.values()) {
+        if (!Number.isFinite(video.duration) || video.duration <= 0) continue;
+        const target = frameTime % video.duration;
+        if (Math.abs(video.currentTime - target) > 0.25 && !video.seeking) video.currentTime = target;
+      }
+      drawFrame(ctx, width, height, layers, frameTime, background, images, models, videos);
       onProgress?.(Math.min(1, t / duration));
       if (t >= duration) resolve();
-       else requestAnimationFrame(() => void tick());
+      else requestAnimationFrame(tick);
     };
-     requestAnimationFrame(() => void tick());
+    requestAnimationFrame(tick);
   });
+  for (const video of videos.values()) video.pause();
   rec.stop();
   await done;
   return { blob: new Blob(chunks, { type: mime.split(";")[0] ?? mime }), ext };
