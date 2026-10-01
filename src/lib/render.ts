@@ -114,7 +114,7 @@ function drawPerspective(
   sh: number,
   dw: number,
   dh: number,
-  v: Record<string, number>,
+  v: Record<import("@/lib/motion").PropKey, number>,
   W: number,
   H: number,
 ) {
