@@ -125,6 +125,12 @@ export interface Layer {
   rotX?: number | undefined;
   rotY?: number | undefined;
   rotZ?: number | undefined;
+  /** Layer is pinned to the background video's tracked camera motion. */
+  followCamera?: boolean | undefined;
+  /** Text layer rendered as extruded 3D letters. */
+  text3d?: boolean | undefined;
+  /** Extrusion depth for 3D text (px). */
+  depth?: number | undefined;
   width: number;
   height: number;
   radius: number;
