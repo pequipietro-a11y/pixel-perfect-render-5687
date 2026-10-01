@@ -1,119 +1,58 @@
 import { useEffect, useRef, useState } from "react";
-import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { Layer } from "@/lib/motion";
+import { build3DKey, createModelRenderer, type ModelRenderer } from "@/lib/scene3d";
 
 interface Props {
-  src: string;
-  format: "glb" | "gltf" | "obj";
-  width: number;
-  height: number;
+  layer: Layer;
   rotX: number;
   rotY: number;
   rotZ: number;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-/** Renders an imported 3D model (.glb/.gltf/.obj) into a small WebGL canvas. */
-export function Model3DView({ src, format, width, height, rotX, rotY, rotZ }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rendererRef = useRef<any>(null);
-  const modelRef = useRef<any>(null);
-  const sceneRef = useRef<any>(null);
-  const cameraRef = useRef<any>(null);
+/** Renders an imported 3D model or extruded 3D text into a WebGL canvas. */
+export function Model3DView({ layer, rotX, rotY, rotZ }: Props) {
+  const holderRef = useRef<HTMLDivElement | null>(null);
+  const rendererRef = useRef<ModelRenderer | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const key = build3DKey(layer);
+  const { width, height } = layer;
+  const layerRef = useRef(layer);
+  layerRef.current = layer;
 
   useEffect(() => {
     let disposed = false;
     setStatus("loading");
-    (async () => {
-      try {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const THREE = await import("three");
-        const buf = await (await fetch(src)).arrayBuffer();
-        if (disposed) return;
-
-        let object: any;
-        if (format === "obj") {
-          const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
-          object = new OBJLoader().parse(new TextDecoder().decode(buf));
-        } else {
-          const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
-          const gltf: GLTF = await new Promise((res, rej) =>
-            new GLTFLoader().parse(buf, "", res, rej),
-          );
-          object = gltf.scene;
-        }
-        if (disposed || !object) return;
-
-        const renderer = new THREE.WebGLRenderer({
-          canvas,
-          alpha: true,
-          antialias: true,
-          preserveDrawingBuffer: true,
-        });
-        renderer.setSize(width, height, false);
-        const scene = new THREE.Scene();
-        scene.add(new THREE.AmbientLight(0xffffff, 1.1));
-        const key = new THREE.DirectionalLight(0xffffff, 1.6);
-        key.position.set(2, 3, 4);
-        scene.add(key);
-        const rim = new THREE.DirectionalLight(0x88aaff, 0.6);
-        rim.position.set(-3, -1, -2);
-        scene.add(rim);
-        const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 5000);
-
-        // Center the model and fit the camera to it.
-        const box = new THREE.Box3().setFromObject(object);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        object.position.set(-center.x, -center.y, -center.z);
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
-        const dist = (maxDim / 2) / Math.tan(((45 / 2) * Math.PI) / 180);
-        camera.position.set(0, 0, dist * 1.2);
-        camera.lookAt(0, 0, 0);
-        scene.add(object);
-
-        rendererRef.current = renderer;
-        modelRef.current = object;
-        sceneRef.current = scene;
-        cameraRef.current = camera;
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.display = "block";
+    createModelRenderer(layerRef.current, canvas)
+      .then((r) => {
+        if (disposed) return r.dispose();
+        holderRef.current?.replaceChildren(canvas);
+        rendererRef.current = r;
         setStatus("ready");
-      } catch {
+      })
+      .catch(() => {
         if (!disposed) setStatus("error");
-      }
-    })();
-
+      });
     return () => {
       disposed = true;
-      rendererRef.current?.dispose?.();
+      rendererRef.current?.dispose();
       rendererRef.current = null;
-      modelRef.current = null;
-      sceneRef.current = null;
-      cameraRef.current = null;
     };
-  }, [src, format, width, height]);
+  }, [key, width, height]);
 
-  // Redraw whenever the rotation values change.
   useEffect(() => {
-    const model = modelRef.current;
-    const renderer = rendererRef.current;
-    if (!model || !renderer) return;
-    const d = Math.PI / 180;
-    model.rotation.set(rotX * d, rotY * d, rotZ * d);
-    renderer.render(sceneRef.current, cameraRef.current);
+    rendererRef.current?.render(rotX, rotY, rotZ);
   }, [rotX, rotY, rotZ, status]);
 
   return (
     <div className="relative" style={{ width, height }}>
-      <canvas
-        ref={canvasRef}
-        className="block"
-        style={{ width, height }}
-      />
+      <div ref={holderRef} className="h-full w-full" />
       {status !== "ready" && (
         <div className="absolute inset-0 grid place-items-center text-[11px] text-muted-foreground">
-          {status === "loading" ? "Carregando 3D..." : "Falha ao carregar o modelo"}
+          {status === "loading" ? "Carregando 3D..." : "Falha ao carregar o 3D"}
         </div>
       )}
     </div>
