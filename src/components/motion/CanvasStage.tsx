@@ -1,6 +1,11 @@
 import { useRef, useState } from "react";
 import { sampleLayer, type Layer } from "@/lib/motion";
 import type { Background } from "@/lib/render";
+import {
+  cameraOffsetAt,
+  type CameraMotion,
+  type TerrainPoint,
+} from "@/lib/cameraTrack";
 import { Model3DView } from "./Model3DView";
 import { VideoLayerView } from "./VideoLayerView";
 
@@ -16,6 +21,9 @@ interface Props {
   onMove: (id: string, dx: number, dy: number) => void;
   onEditText?: (id: string) => void;
   playing?: boolean;
+  cameraMotion?: CameraMotion | null;
+  terrainPoints?: TerrainPoint[] | null;
+  onPickTerrain?: (p: TerrainPoint) => void;
 }
 
 export function CanvasStage({
@@ -30,6 +38,9 @@ export function CanvasStage({
   onMove,
   onEditText,
   playing = false,
+  cameraMotion = null,
+  terrainPoints = null,
+  onPickTerrain,
 }: Props) {
   const dragRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
