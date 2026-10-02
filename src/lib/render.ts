@@ -44,60 +44,16 @@ function containRect(iw: number, ih: number, w: number, h: number) {
   return { w: iw * s, h: ih * s };
 }
 
-/** Renders an imported 3D model once into an offscreen canvas for video export. */
-async function renderModelToCanvas(
+/** Builds a reusable 3D renderer (imported model or 3D text) for video export. */
+async function buildExportRenderer(
   layer: Layer,
-): Promise<HTMLCanvasElement | null> {
-  if (!layer.src) return null;
-  const THREE = await import("three");
-  const w = Math.max(2, layer.width);
-  const h = Math.max(2, layer.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    alpha: true,
-    antialias: true,
-    preserveDrawingBuffer: true,
-  });
-  renderer.setSize(w, h, false);
-  const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xffffff, 1.1));
-  const key = new THREE.DirectionalLight(0xffffff, 1.6);
-  key.position.set(2, 3, 4);
-  scene.add(key);
-  const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 5000);
-
-  const buf = await (await fetch(layer.src)).arrayBuffer();
-  let object: import("three").Group;
-  if (layer.modelFormat === "obj") {
-    const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
-    object = new OBJLoader().parse(new TextDecoder().decode(buf));
-  } else {
-    const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
-    const gltf = await new Promise((res, rej) =>
-      new GLTFLoader().parse(buf, "", res, rej),
-    );
-    object = (gltf as { scene: import("three").Group }).scene;
+): Promise<import("@/lib/scene3d").ModelRenderer | null> {
+  try {
+    const { createModelRenderer } = await import("@/lib/scene3d");
+    return await createModelRenderer(layer);
+  } catch {
+    return null;
   }
-
-  const box = new THREE.Box3().setFromObject(object);
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-  object.position.set(-center.x, -center.y, -center.z);
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  camera.position.set(0, 0, ((maxDim / 2) / Math.tan((22.5 * Math.PI) / 180)) * 1.2);
-  camera.lookAt(0, 0, 0);
-  const d = Math.PI / 180;
-  object.rotation.set(
-    (layer.rotX ?? 0) * d,
-    (layer.rotY ?? 0) * d,
-    (layer.rotZ ?? 0) * d,
-  );
-  scene.add(object);
-  renderer.render(scene, camera);
-  return canvas;
 }
 
 let warpTmp: HTMLCanvasElement | null = null;
