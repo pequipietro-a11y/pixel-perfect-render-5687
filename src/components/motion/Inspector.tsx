@@ -196,6 +196,32 @@ export function Inspector({
                 className="num-field mt-1"
               />
             </label>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={!!layer.text3d}
+                onChange={(e) =>
+                  onUpdateLayer(layer.id, { text3d: e.target.checked })
+                }
+                className="accent-[var(--color-primary)]"
+              />
+              Texto 3D (letras com volume)
+            </label>
+            {layer.text3d && (
+              <label className="block text-xs text-muted-foreground">
+                Profundidade 3D
+                <input
+                  type="range"
+                  min={2}
+                  max={120}
+                  value={layer.depth ?? 30}
+                  onChange={(e) =>
+                    onUpdateLayer(layer.id, { depth: Number(e.target.value) })
+                  }
+                  className="mt-1 w-full accent-[var(--color-primary)]"
+                />
+              </label>
+            )}
           </>
         )}
         {layer.kind !== "ellipse" &&
@@ -232,6 +258,28 @@ export function Inspector({
           </select>
         </label>
       </div>
+
+      {(layer.kind === "model3d" || (layer.kind === "text" && layer.text3d)) && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            CGI / Câmera
+          </h3>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={!!layer.followCamera}
+              onChange={(e) =>
+                onUpdateLayer(layer.id, { followCamera: e.target.checked })
+              }
+              className="accent-[var(--color-primary)]"
+            />
+            Seguir câmera do vídeo de fundo
+          </label>
+          <p className="text-[10px] text-muted-foreground">
+            Use "Rastrear câmera" no topo depois de definir um vídeo de fundo.
+          </p>
+        </div>
+      )}
 
       {layer.kind === "image" && layer.src && (
         <ImageCropTool

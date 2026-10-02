@@ -4,9 +4,10 @@ interface Props {
   src: string;
   time: number;
   playing: boolean;
+  cover?: boolean;
 }
 
-export function VideoLayerView({ src, time, playing }: Props) {
+export function VideoLayerView({ src, time, playing, cover = false }: Props) {
   const ref = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export function VideoLayerView({ src, time, playing }: Props) {
       playsInline
       preload="auto"
       draggable={false}
-      className="pointer-events-none h-full w-full object-contain"
+      className={`pointer-events-none h-full w-full ${cover ? "object-cover" : "object-contain"}`}
     />
   );
 }

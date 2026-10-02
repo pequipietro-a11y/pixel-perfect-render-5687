@@ -1,6 +1,11 @@
 import { useRef, useState } from "react";
 import { sampleLayer, type Layer } from "@/lib/motion";
 import type { Background } from "@/lib/render";
+import {
+  cameraOffsetAt,
+  type CameraMotion,
+  type TerrainPoint,
+} from "@/lib/cameraTrack";
 import { Model3DView } from "./Model3DView";
 import { VideoLayerView } from "./VideoLayerView";
 
@@ -16,6 +21,9 @@ interface Props {
   onMove: (id: string, dx: number, dy: number) => void;
   onEditText?: (id: string) => void;
   playing?: boolean;
+  cameraMotion?: CameraMotion | null;
+  terrainPoints?: TerrainPoint[] | null;
+  onPickTerrain?: (p: TerrainPoint) => void;
 }
 
 export function CanvasStage({
@@ -30,6 +38,9 @@ export function CanvasStage({
   onMove,
   onEditText,
   playing = false,
+  cameraMotion = null,
+  terrainPoints = null,
+  onPickTerrain,
 }: Props) {
   const dragRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -76,9 +87,17 @@ export function CanvasStage({
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundColor: background.color,
-            backgroundImage: background.image ? `url(${background.image})` : undefined,
+            backgroundImage:
+              !background.video && background.image
+                ? `url(${background.image})`
+                : undefined,
           }}
         />
+        {background.video && (
+          <div className="absolute inset-0">
+            <VideoLayerView src={background.video} time={time} playing={playing} cover />
+          </div>
+        )}
         <div
           className="absolute left-1/2 top-1/2 origin-center"
           style={{ transform: `scale(${zoom})` }}
@@ -86,7 +105,15 @@ export function CanvasStage({
           {[...layers].reverse().map((layer) => {
             if (!layer.visible) return null;
             const v = sampleLayer(layer, time);
+            // Camera-follow: shift the layer opposite to the tracked camera motion.
+            if (layer.followCamera && cameraMotion) {
+              const off = cameraOffsetAt(cameraMotion, time);
+              v.x += off.x;
+              v.y += off.y;
+            }
             const selected = layer.id === selectedId;
+            const is3d =
+              layer.kind === "model3d" || (layer.kind === "text" && layer.text3d);
             const filters = [
               v.blur ? `blur(${v.blur}px)` : "",
               v.glow
@@ -105,7 +132,7 @@ export function CanvasStage({
                 onPointerDown={(e) => handlePointerDown(e, layer.id)}
                 onDoubleClick={() => layer.kind === "text" && onEditText?.(layer.id)}
                 className={`absolute cursor-move select-none ${
-                  selected && layer.kind !== "image" && layer.kind !== "model3d"
+                  selected && layer.kind !== "image" && !is3d
                     ? "outline outline-2 outline-primary"
                     : ""
                 } ${dragging && selected ? "" : "transition-none"}`}
@@ -117,11 +144,20 @@ export function CanvasStage({
                   opacity: v.opacity / 100,
                   mixBlendMode: layer.blend === "normal" ? undefined : layer.blend,
                   filter: filters || undefined,
-                   transform: `perspective(900px) translate3d(${v.x}px, ${v.y}px, 0) rotateX(${v.rotX}deg) rotateY(${v.rotY}deg) rotateZ(${v.rotation + v.rotZ}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
-                   transformStyle: "preserve-3d",
+                  transform: is3d
+                    ? `translate3d(${v.x}px, ${v.y}px, 0) scale(${v.scaleX / 100}, ${v.scaleY / 100})`
+                    : `perspective(900px) translate3d(${v.x}px, ${v.y}px, 0) rotateX(${v.rotX}deg) rotateY(${v.rotY}deg) rotateZ(${v.rotation + v.rotZ}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
+                  transformStyle: "preserve-3d",
                 }}
               >
-                {layer.kind === "text" ? (
+                {layer.kind === "text" && layer.text3d ? (
+                  <Model3DView
+                    layer={layer}
+                    rotX={v.rotX}
+                    rotY={v.rotY}
+                    rotZ={v.rotation + v.rotZ}
+                  />
+                ) : layer.kind === "text" ? (
                   <div
                     className="flex h-full w-full items-center justify-center whitespace-nowrap text-center font-display font-bold"
                     style={{ color: layer.color, fontSize: layer.fontSize }}
@@ -139,13 +175,10 @@ export function CanvasStage({
                   <VideoLayerView src={layer.src} time={time} playing={playing} />
                 ) : layer.kind === "model3d" && layer.src ? (
                   <Model3DView
-                    src={layer.src}
-                    format={layer.modelFormat ?? "glb"}
-                    width={layer.width}
-                    height={layer.height}
-                     rotX={v.rotX}
-                     rotY={v.rotY}
-                     rotZ={v.rotZ}
+                    layer={layer}
+                    rotX={v.rotX}
+                    rotY={v.rotY}
+                    rotZ={v.rotZ}
                   />
                 ) : (
                   <div
@@ -160,6 +193,24 @@ export function CanvasStage({
               </div>
             );
           })}
+          {terrainPoints?.map((p, i) => (
+            <button
+              key={i}
+              title={`Ponto ${p.kind === "high" ? "alto" : "baixo"} — clique para posicionar o objeto 3D aqui`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onPickTerrain?.(p);
+              }}
+              className={`absolute z-10 grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-2 text-[10px] font-bold ${
+                p.kind === "high"
+                  ? "border-primary bg-primary/30 text-primary"
+                  : "border-[#63d2ff] bg-[#63d2ff]/30 text-[#63d2ff]"
+              }`}
+              style={{ left: p.x * width - width / 2, top: p.y * height - height / 2 }}
+            >
+              {p.kind === "high" ? "▲" : "▼"}
+            </button>
+          ))}
         </div>
       </div>
     </div>

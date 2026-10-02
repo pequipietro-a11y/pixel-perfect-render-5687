@@ -4,6 +4,12 @@ import { Inspector } from "@/components/motion/Inspector";
 import { LayersPanel } from "@/components/motion/LayersPanel";
 import { Timeline } from "@/components/motion/Timeline";
 import { export3D } from "@/lib/export3d";
+import {
+  analyzeCameraMotion,
+  analyzeTerrain,
+  type CameraMotion,
+  type TerrainPoint,
+} from "@/lib/cameraTrack";
 import { removeConnectedPngBackground } from "@/lib/imageProcessing";
 import { exportVideo, type Background } from "@/lib/render";
 import {
@@ -30,6 +36,9 @@ export function Editor() {
   const [zoom, setZoom] = useState(0.7);
   const [background, setBackground] = useState<Background>({ color: "#1b2230" });
   const [exporting, setExporting] = useState<number | null>(null);
+  const [cameraMotion, setCameraMotion] = useState<CameraMotion | null>(null);
+  const [terrainPoints, setTerrainPoints] = useState<TerrainPoint[] | null>(null);
+  const [tracking, setTracking] = useState<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
@@ -417,10 +426,29 @@ export function Editor() {
               }}
             />
           </label>
-          {background.image && (
+          <label className="tool-btn cursor-pointer">
+            Vídeo de fundo
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f)
+                  setBackground((b) => ({
+                    ...b,
+                    video: URL.createObjectURL(f),
+                  }));
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {(background.image || background.video) && (
             <button
               className="tool-btn"
-              onClick={() => setBackground((b) => ({ ...b, image: undefined }))}
+              onClick={() =>
+                setBackground((b) => ({ ...b, image: undefined, video: undefined }))
+              }
             >
               Remover fundo
             </button>
