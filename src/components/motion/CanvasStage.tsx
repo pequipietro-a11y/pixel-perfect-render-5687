@@ -121,7 +121,14 @@ export function CanvasStage({
                    transformStyle: "preserve-3d",
                 }}
               >
-                {layer.kind === "text" ? (
+                {layer.kind === "text" && layer.text3d ? (
+                  <Model3DView
+                    layer={layer}
+                    rotX={v.rotX}
+                    rotY={v.rotY}
+                    rotZ={v.rotation + v.rotZ}
+                  />
+                ) : layer.kind === "text" ? (
                   <div
                     className="flex h-full w-full items-center justify-center whitespace-nowrap text-center font-display font-bold"
                     style={{ color: layer.color, fontSize: layer.fontSize }}
@@ -139,13 +146,10 @@ export function CanvasStage({
                   <VideoLayerView src={layer.src} time={time} playing={playing} />
                 ) : layer.kind === "model3d" && layer.src ? (
                   <Model3DView
-                    src={layer.src}
-                    format={layer.modelFormat ?? "glb"}
-                    width={layer.width}
-                    height={layer.height}
-                     rotX={v.rotX}
-                     rotY={v.rotY}
-                     rotZ={v.rotZ}
+                    layer={layer}
+                    rotX={v.rotX}
+                    rotY={v.rotY}
+                    rotZ={v.rotZ}
                   />
                 ) : (
                   <div
