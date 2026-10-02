@@ -105,6 +105,12 @@ export function CanvasStage({
           {[...layers].reverse().map((layer) => {
             if (!layer.visible) return null;
             const v = sampleLayer(layer, time);
+            // Camera-follow: shift the layer opposite to the tracked camera motion.
+            if (layer.followCamera && cameraMotion) {
+              const off = cameraOffsetAt(cameraMotion, time);
+              v.x += off.x;
+              v.y += off.y;
+            }
             const selected = layer.id === selectedId;
             const is3d =
               layer.kind === "model3d" || (layer.kind === "text" && layer.text3d);
