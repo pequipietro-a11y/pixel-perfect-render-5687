@@ -193,6 +193,24 @@ export function CanvasStage({
               </div>
             );
           })}
+          {terrainPoints?.map((p, i) => (
+            <button
+              key={i}
+              title={`Ponto ${p.kind === "high" ? "alto" : "baixo"} — clique para posicionar o objeto 3D aqui`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onPickTerrain?.(p);
+              }}
+              className={`absolute z-10 grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-2 text-[10px] font-bold ${
+                p.kind === "high"
+                  ? "border-primary bg-primary/30 text-primary"
+                  : "border-[#63d2ff] bg-[#63d2ff]/30 text-[#63d2ff]"
+              }`}
+              style={{ left: p.x * width - width / 2, top: p.y * height - height / 2 }}
+            >
+              {p.kind === "high" ? "▲" : "▼"}
+            </button>
+          ))}
         </div>
       </div>
     </div>
