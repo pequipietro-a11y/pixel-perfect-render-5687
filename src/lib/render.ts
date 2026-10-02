@@ -1,4 +1,5 @@
 import { sampleLayer, type Layer } from "@/lib/motion";
+import { cameraOffsetAt, type CameraMotion } from "@/lib/cameraTrack";
 
 export interface Background {
   color: string;
@@ -204,7 +205,7 @@ function drawFrame(
   images: Map<string, HTMLImageElement>,
   models: Map<string, HTMLCanvasElement>,
   videos: Map<string, HTMLVideoElement>,
-  cameraMotion?: import("@/lib/cameraTrack").CameraMotion | null,
+  cameraMotion?: CameraMotion | null,
 ) {
   ctx.save();
   ctx.globalAlpha = 1;
@@ -233,7 +234,6 @@ function drawFrame(
     if (!layer.visible) continue;
     const v = sampleLayer(layer, time);
     if (layer.followCamera && cameraMotion) {
-      const { cameraOffsetAt } = await import("@/lib/cameraTrack");
       const off = cameraOffsetAt(cameraMotion, time);
       v.x += off.x;
       v.y += off.y;
