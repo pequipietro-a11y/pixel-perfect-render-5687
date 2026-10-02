@@ -87,6 +87,8 @@ export function CanvasStage({
             if (!layer.visible) return null;
             const v = sampleLayer(layer, time);
             const selected = layer.id === selectedId;
+            const is3d =
+              layer.kind === "model3d" || (layer.kind === "text" && layer.text3d);
             const filters = [
               v.blur ? `blur(${v.blur}px)` : "",
               v.glow
@@ -105,7 +107,7 @@ export function CanvasStage({
                 onPointerDown={(e) => handlePointerDown(e, layer.id)}
                 onDoubleClick={() => layer.kind === "text" && onEditText?.(layer.id)}
                 className={`absolute cursor-move select-none ${
-                  selected && layer.kind !== "image" && layer.kind !== "model3d"
+                  selected && layer.kind !== "image" && !is3d
                     ? "outline outline-2 outline-primary"
                     : ""
                 } ${dragging && selected ? "" : "transition-none"}`}
@@ -117,8 +119,10 @@ export function CanvasStage({
                   opacity: v.opacity / 100,
                   mixBlendMode: layer.blend === "normal" ? undefined : layer.blend,
                   filter: filters || undefined,
-                   transform: `perspective(900px) translate3d(${v.x}px, ${v.y}px, 0) rotateX(${v.rotX}deg) rotateY(${v.rotY}deg) rotateZ(${v.rotation + v.rotZ}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
-                   transformStyle: "preserve-3d",
+                  transform: is3d
+                    ? `translate3d(${v.x}px, ${v.y}px, 0) scale(${v.scaleX / 100}, ${v.scaleY / 100})`
+                    : `perspective(900px) translate3d(${v.x}px, ${v.y}px, 0) rotateX(${v.rotX}deg) rotateY(${v.rotY}deg) rotateZ(${v.rotation + v.rotZ}deg) scale(${v.scaleX / 100}, ${v.scaleY / 100})`,
+                  transformStyle: "preserve-3d",
                 }}
               >
                 {layer.kind === "text" && layer.text3d ? (
