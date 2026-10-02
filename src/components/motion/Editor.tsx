@@ -4,6 +4,12 @@ import { Inspector } from "@/components/motion/Inspector";
 import { LayersPanel } from "@/components/motion/LayersPanel";
 import { Timeline } from "@/components/motion/Timeline";
 import { export3D } from "@/lib/export3d";
+import {
+  analyzeCameraMotion,
+  analyzeTerrain,
+  type CameraMotion,
+  type TerrainPoint,
+} from "@/lib/cameraTrack";
 import { removeConnectedPngBackground } from "@/lib/imageProcessing";
 import { exportVideo, type Background } from "@/lib/render";
 import {
@@ -30,6 +36,9 @@ export function Editor() {
   const [zoom, setZoom] = useState(0.7);
   const [background, setBackground] = useState<Background>({ color: "#1b2230" });
   const [exporting, setExporting] = useState<number | null>(null);
+  const [cameraMotion, setCameraMotion] = useState<CameraMotion | null>(null);
+  const [terrainPoints, setTerrainPoints] = useState<TerrainPoint[] | null>(null);
+  const [tracking, setTracking] = useState<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
