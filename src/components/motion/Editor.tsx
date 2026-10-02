@@ -417,10 +417,29 @@ export function Editor() {
               }}
             />
           </label>
-          {background.image && (
+          <label className="tool-btn cursor-pointer">
+            Vídeo de fundo
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f)
+                  setBackground((b) => ({
+                    ...b,
+                    video: URL.createObjectURL(f),
+                  }));
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {(background.image || background.video) && (
             <button
               className="tool-btn"
-              onClick={() => setBackground((b) => ({ ...b, image: undefined }))}
+              onClick={() =>
+                setBackground((b) => ({ ...b, image: undefined, video: undefined }))
+              }
             >
               Remover fundo
             </button>
