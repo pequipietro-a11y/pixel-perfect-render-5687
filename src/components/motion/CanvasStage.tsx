@@ -76,9 +76,17 @@ export function CanvasStage({
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundColor: background.color,
-            backgroundImage: background.image ? `url(${background.image})` : undefined,
+            backgroundImage:
+              !background.video && background.image
+                ? `url(${background.image})`
+                : undefined,
           }}
         />
+        {background.video && (
+          <div className="absolute inset-0">
+            <VideoLayerView src={background.video} time={time} playing={playing} cover />
+          </div>
+        )}
         <div
           className="absolute left-1/2 top-1/2 origin-center"
           style={{ transform: `scale(${zoom})` }}
