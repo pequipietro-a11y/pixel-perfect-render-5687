@@ -259,6 +259,28 @@ export function Inspector({
         </label>
       </div>
 
+      {(layer.kind === "model3d" || (layer.kind === "text" && layer.text3d)) && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            CGI / Câmera
+          </h3>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={!!layer.followCamera}
+              onChange={(e) =>
+                onUpdateLayer(layer.id, { followCamera: e.target.checked })
+              }
+              className="accent-[var(--color-primary)]"
+            />
+            Seguir câmera do vídeo de fundo
+          </label>
+          <p className="text-[10px] text-muted-foreground">
+            Use "Rastrear câmera" no topo depois de definir um vídeo de fundo.
+          </p>
+        </div>
+      )}
+
       {layer.kind === "image" && layer.src && (
         <ImageCropTool
           layer={layer}
