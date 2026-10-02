@@ -3,6 +3,7 @@ import { sampleLayer, type Layer } from "@/lib/motion";
 export interface Background {
   color: string;
   image?: string | undefined;
+  video?: string | undefined;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -210,12 +211,20 @@ function drawFrame(
   ctx.filter = "none";
   ctx.fillStyle = bg.color;
   ctx.fillRect(0, 0, W, H);
-  const bgImg = bg.image ? images.get(bg.image) : undefined;
-  if (bgImg) {
-    const s = Math.max(W / bgImg.width, H / bgImg.height);
-    const w = bgImg.width * s;
-    const h = bgImg.height * s;
-    ctx.drawImage(bgImg, (W - w) / 2, (H - h) / 2, w, h);
+  const bgVid = bg.video ? videos.get(bg.video) : undefined;
+  if (bgVid && bgVid.videoWidth) {
+    const s = Math.max(W / bgVid.videoWidth, H / bgVid.videoHeight);
+    const w = bgVid.videoWidth * s;
+    const h = bgVid.videoHeight * s;
+    ctx.drawImage(bgVid, (W - w) / 2, (H - h) / 2, w, h);
+  } else {
+    const bgImg = bg.image ? images.get(bg.image) : undefined;
+    if (bgImg) {
+      const s = Math.max(W / bgImg.width, H / bgImg.height);
+      const w = bgImg.width * s;
+      const h = bgImg.height * s;
+      ctx.drawImage(bgImg, (W - w) / 2, (H - h) / 2, w, h);
+    }
   }
   ctx.restore();
 
@@ -332,9 +341,10 @@ export async function exportVideo(opts: {
   await document.fonts?.ready;
 
   const videos = new Map<string, HTMLVideoElement>();
-  const videoSrcs = layers
-    .filter((l) => l.kind === "video" && l.src)
-    .map((l) => l.src as string);
+  const videoSrcs = [
+    ...layers.filter((l) => l.kind === "video" && l.src).map((l) => l.src as string),
+    ...(background.video ? [background.video] : []),
+  ];
   await Promise.all(
     videoSrcs.map(async (src) => {
       try {
