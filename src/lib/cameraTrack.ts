@@ -32,9 +32,11 @@ function loadVideoEl(src: string): Promise<HTMLVideoElement> {
 }
 
 function seek(v: HTMLVideoElement, t: number): Promise<void> {
+  const target = Math.min(t, Math.max(0, v.duration - 0.05));
+  if (Math.abs(v.currentTime - target) < 0.001) return Promise.resolve();
   return new Promise((resolve) => {
     v.addEventListener("seeked", () => resolve(), { once: true });
-    v.currentTime = Math.min(t, Math.max(0, v.duration - 0.05));
+    v.currentTime = target;
   });
 }
 

@@ -1,5 +1,5 @@
 import { sampleLayer, type Layer } from "@/lib/motion";
-import { cameraOffsetAt, type CameraMotion } from "@/lib/cameraTrack";
+import { cameraOffsetAt, cameraViewAt, isOutsideFrame, type CameraMotion } from "@/lib/cameraTrack";
 
 export interface Background {
   color: string;
@@ -159,7 +159,7 @@ function drawFrame(
   time: number,
   bg: Background,
   images: Map<string, HTMLImageElement>,
-  models: Map<string, HTMLCanvasElement>,
+  models: Map<string, import("@/lib/scene3d").ModelRenderer>,
   videos: Map<string, HTMLVideoElement>,
   cameraMotion?: CameraMotion | null,
 ) {
@@ -194,6 +194,9 @@ function drawFrame(
       v.x += off.x;
       v.y += off.y;
     }
+    const is3d = layer.kind === "model3d" || (layer.kind === "text" && layer.text3d);
+    if (is3d && layer.followCamera && cameraMotion &&
+      isOutsideFrame(v.x, v.y, layer.width * Math.abs(v.scaleX / 100), layer.height * Math.abs(v.scaleY / 100), W, H)) continue;
     const f: string[] = [];
     if (v.blur) f.push(`blur(${v.blur}px)`);
     if (v.glow) f.push(`drop-shadow(0 0 ${v.glow}px ${layer.color})`);
@@ -241,7 +244,15 @@ function drawFrame(
     ctx.filter = filter;
     const w = layer.width;
     const h = layer.height;
-    if (layer.kind === "text") {
+    if (is3d) {
+      const model = models.get(layer.id);
+      if (model) {
+        const view = layer.followCamera && layer.cameraAngle && cameraMotion
+          ? cameraViewAt(cameraMotion, time) : { x: 0, y: 0 };
+        model.render(v.rotX + view.x, v.rotY + view.y, v.rotation + v.rotZ);
+        ctx.drawImage(model.canvas, -w / 2, -h / 2, w, h);
+      }
+    } else if (layer.kind === "text") {
       ctx.fillStyle = layer.color;
       ctx.font = `bold ${layer.fontSize ?? 48}px "Space Grotesk", sans-serif`;
       ctx.textAlign = "center";
@@ -259,13 +270,7 @@ function drawFrame(
         const r = containRect(video.videoWidth, video.videoHeight, w, h);
         ctx.drawImage(video, -r.w / 2, -r.h / 2, r.w, r.h);
       }
-    } else if (layer.kind === "model3d") {
-      const mc = layer.src ? models.get(layer.src) : undefined;
-      if (mc) {
-        const r = containRect(mc.width, mc.height, w, h);
-        ctx.drawImage(mc, -r.w / 2, -r.h / 2, r.w, r.h);
-      }
-    } else {
+    } else if (layer.kind !== "model3d") {
       ctx.fillStyle = layer.color;
       ctx.beginPath();
       if (layer.kind === "ellipse") ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
@@ -284,9 +289,10 @@ export async function exportVideo(opts: {
   width: number;
   height: number;
   background: Background;
+  cameraMotion?: CameraMotion | null;
   onProgress?: (p: number) => void;
 }): Promise<{ blob: Blob; ext: string }> {
-  const { layers, duration, fps, width, height, background, onProgress } = opts;
+  const { layers, duration, fps, width, height, background, cameraMotion, onProgress } = opts;
   const images = new Map<string, HTMLImageElement>();
   const srcs = [
     ...layers.filter((l) => l.kind === "image" && l.src).map((l) => l.src as string),
@@ -334,19 +340,19 @@ export async function exportVideo(opts: {
   const mime = types.find((t) => MediaRecorder.isTypeSupported(t)) ?? "video/webm";
   const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
 
-  const models = new Map<string, HTMLCanvasElement>();
+  const models = new Map<string, import("@/lib/scene3d").ModelRenderer>();
   for (const l of layers) {
-    if (l.kind !== "model3d" || !l.src || models.has(l.src)) continue;
+    if (l.kind !== "model3d" && !(l.kind === "text" && l.text3d)) continue;
     try {
-      const mc = await renderModelToCanvas(l);
-      if (mc) models.set(l.src, mc);
+      const mc = await buildExportRenderer(l);
+      if (mc) models.set(l.id, mc);
     } catch {
       /* ignore */
     }
   }
 
   await Promise.all([...videos.values()].map((video) => seekVideo(video, 0)));
-  drawFrame(ctx, width, height, layers, 0, background, images, models, videos);
+  drawFrame(ctx, width, height, layers, 0, background, images, models, videos, cameraMotion);
   const stream = canvas.captureStream(fps);
   const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
   const chunks: Blob[] = [];
@@ -369,7 +375,7 @@ export async function exportVideo(opts: {
         const target = frameTime % video.duration;
         if (Math.abs(video.currentTime - target) > 0.25 && !video.seeking) video.currentTime = target;
       }
-      drawFrame(ctx, width, height, layers, frameTime, background, images, models, videos);
+      drawFrame(ctx, width, height, layers, frameTime, background, images, models, videos, cameraMotion);
       onProgress?.(Math.min(1, t / duration));
       if (t >= duration) resolve();
       else requestAnimationFrame(tick);
@@ -379,5 +385,6 @@ export async function exportVideo(opts: {
   for (const video of videos.values()) video.pause();
   rec.stop();
   await done;
+  for (const model of models.values()) model.dispose();
   return { blob: new Blob(chunks, { type: mime.split(";")[0] ?? mime }), ext };
 }
