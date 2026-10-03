@@ -292,7 +292,8 @@ export function Editor() {
     try {
       const motion = await analyzeCameraMotion(background.video, duration, setTracking);
       setCameraMotion(motion);
-    } catch {
+    } catch (error) {
+      console.error("Falha na análise de câmera", error);
       alert("Não foi possível analisar o movimento deste vídeo.");
     } finally {
       setTracking(null);
@@ -303,7 +304,8 @@ export function Editor() {
     if (!background.video) return;
     try {
       setTerrainPoints(await analyzeTerrain(background.video));
-    } catch {
+    } catch (error) {
+      console.error("Falha na análise de terreno", error);
       alert("Não foi possível detectar o terreno deste vídeo.");
     }
   };
