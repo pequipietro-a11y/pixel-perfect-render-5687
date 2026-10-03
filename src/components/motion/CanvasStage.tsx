@@ -184,7 +184,7 @@ export function CanvasStage({
                     layer={layer}
                     rotX={v.rotX + view.x}
                     rotY={v.rotY + view.y}
-                    rotZ={v.rotZ}
+                    rotZ={v.rotation + v.rotZ}
                   />
                 ) : (
                   <div
