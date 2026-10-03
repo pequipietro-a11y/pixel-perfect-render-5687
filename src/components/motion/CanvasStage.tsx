@@ -3,6 +3,8 @@ import { sampleLayer, type Layer } from "@/lib/motion";
 import type { Background } from "@/lib/render";
 import {
   cameraOffsetAt,
+  cameraViewAt,
+  isOutsideFrame,
   type CameraMotion,
   type TerrainPoint,
 } from "@/lib/cameraTrack";
@@ -114,6 +116,10 @@ export function CanvasStage({
             const selected = layer.id === selectedId;
             const is3d =
               layer.kind === "model3d" || (layer.kind === "text" && layer.text3d);
+            if (is3d && layer.followCamera && cameraMotion &&
+              isOutsideFrame(v.x, v.y, layer.width * Math.abs(v.scaleX / 100), layer.height * Math.abs(v.scaleY / 100), width, height)) return null;
+            const view = is3d && layer.followCamera && layer.cameraAngle && cameraMotion
+              ? cameraViewAt(cameraMotion, time) : { x: 0, y: 0 };
             const filters = [
               v.blur ? `blur(${v.blur}px)` : "",
               v.glow
@@ -153,8 +159,8 @@ export function CanvasStage({
                 {layer.kind === "text" && layer.text3d ? (
                   <Model3DView
                     layer={layer}
-                    rotX={v.rotX}
-                    rotY={v.rotY}
+                    rotX={v.rotX + view.x}
+                    rotY={v.rotY + view.y}
                     rotZ={v.rotation + v.rotZ}
                   />
                 ) : layer.kind === "text" ? (
@@ -176,8 +182,8 @@ export function CanvasStage({
                 ) : layer.kind === "model3d" && layer.src ? (
                   <Model3DView
                     layer={layer}
-                    rotX={v.rotX}
-                    rotY={v.rotY}
+                    rotX={v.rotX + view.x}
+                    rotY={v.rotY + view.y}
                     rotZ={v.rotZ}
                   />
                 ) : (

@@ -141,6 +141,20 @@ export function cameraOffsetAt(m: CameraMotion, time: number): { x: number; y: n
   return { x: 0, y: 0 };
 }
 
+/** Approximate viewpoint change from image translation; not a 3D camera solve. */
+export function cameraViewAt(m: CameraMotion, time: number) {
+  const offset = cameraOffsetAt(m, time);
+  return {
+    x: Math.max(-35, Math.min(35, -offset.y * 0.06)),
+    y: Math.max(-70, Math.min(70, offset.x * 0.08)),
+  };
+}
+
+export function isOutsideFrame(x: number, y: number, w: number, h: number, W: number, H: number) {
+  return x + w / 2 < -W / 2 || x - w / 2 > W / 2 ||
+    y + h / 2 < -H / 2 || y - h / 2 > H / 2;
+}
+
 /**
  * Estimates terrain high/low points from the first frame: finds the ground line
  * per column (strongest horizontal edge in the lower half) and reports the

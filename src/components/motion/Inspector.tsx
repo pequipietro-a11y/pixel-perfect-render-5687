@@ -74,7 +74,8 @@ export function Inspector({
             !key.startsWith("rot") ||
             layer.kind === "image" ||
             layer.kind === "video" ||
-            layer.kind === "model3d",
+             layer.kind === "model3d" ||
+             (layer.kind === "text" && !!layer.text3d),
         ).map((key) => {
           const propertyTrack = layer.tracks[key] ?? [];
           const hasKeys = propertyTrack.length > 0;
@@ -273,10 +274,18 @@ export function Inspector({
               }
               className="accent-[var(--color-primary)]"
             />
-            Seguir câmera do vídeo de fundo
+             Fixar 3D no cenário do vídeo
           </label>
+           {layer.followCamera && (
+             <label className="flex items-center gap-2 text-xs text-muted-foreground">
+               <input type="checkbox" checked={!!layer.cameraAngle}
+                 onChange={(e) => onUpdateLayer(layer.id, { cameraAngle: e.target.checked })}
+                 className="accent-[var(--color-primary)]" />
+               Estimar ângulo ao virar a câmera
+             </label>
+           )}
           <p className="text-[10px] text-muted-foreground">
-            Use "Rastrear câmera" no topo depois de definir um vídeo de fundo.
+             Analise o vídeo de fundo para fixar o objeto. O giro é aproximado; ajuste X/Y/Z com keyframes quando necessário.
           </p>
         </div>
       )}
