@@ -286,6 +286,41 @@ export function Editor() {
     if (txt !== null) updateLayer(id, { text: txt });
   };
 
+  const trackCamera = async () => {
+    if (!background.video) return;
+    setTracking(0);
+    try {
+      const motion = await analyzeCameraMotion(background.video, duration, setTracking);
+      setCameraMotion(motion);
+    } catch (error) {
+      console.error("Falha na análise de câmera", error);
+      alert("Não foi possível analisar o movimento deste vídeo.");
+    } finally {
+      setTracking(null);
+    }
+  };
+
+  const detectTerrain = async () => {
+    if (!background.video) return;
+    try {
+      setTerrainPoints(await analyzeTerrain(background.video));
+    } catch (error) {
+      console.error("Falha na análise de terreno", error);
+      alert("Não foi possível detectar o terreno deste vídeo.");
+    }
+  };
+
+  const pickTerrain = (point: TerrainPoint) => {
+    if (!selected || !(selected.kind === "model3d" || (selected.kind === "text" && selected.text3d))) {
+      alert("Selecione um objeto 3D ou texto 3D para posicionar no terreno.");
+      return;
+    }
+    setValue(selected.id, "x", Math.round(point.x * 1280 - 640));
+    setValue(selected.id, "y", Math.round(point.y * 720 - 360));
+    setValue(selected.id, "rotZ", Math.round(point.tilt));
+    updateLayer(selected.id, { followCamera: true });
+  };
+
   const exportMp4 = async () => {
     setPlaying(false);
     setExporting(0);
@@ -297,6 +332,7 @@ export function Editor() {
         width: 1280,
         height: 720,
         background,
+        cameraMotion,
         onProgress: setExporting,
       });
       const url = URL.createObjectURL(blob);
@@ -316,7 +352,7 @@ export function Editor() {
 
   const exportProject = () => {
     const blob = new Blob(
-      [JSON.stringify({ fps, duration, layers }, null, 2)],
+      [JSON.stringify({ fps, duration, layers, background: { ...background, video: undefined }, cameraMotion }, null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);
@@ -355,6 +391,9 @@ export function Editor() {
         }
         if (data.fps) setFps(data.fps);
         if (data.duration) setDuration(data.duration);
+        if (data.background) setBackground(data.background);
+        setCameraMotion(data.cameraMotion ?? null);
+        setTerrainPoints(null);
         setTime(0);
       } catch {
         /* arquivo inválido */
@@ -365,14 +404,14 @@ export function Editor() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="flex items-center gap-3 border-b border-border bg-panel px-4 py-2">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border bg-panel px-4 py-2">
         <h1 className="font-display text-sm font-bold tracking-tight">
           Fluxo <span className="text-primary">Motion</span>
         </h1>
         <span className="text-[11px] text-muted-foreground">
           Espaço: play · ← →: quadro a quadro
         </span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
             Zoom
             <input
@@ -434,11 +473,11 @@ export function Editor() {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f)
-                  setBackground((b) => ({
-                    ...b,
-                    video: URL.createObjectURL(f),
-                  }));
+                 if (f) {
+                   setBackground((b) => ({ ...b, video: URL.createObjectURL(f) }));
+                   setCameraMotion(null);
+                   setTerrainPoints(null);
+                 }
                 e.target.value = "";
               }}
             />
@@ -446,9 +485,11 @@ export function Editor() {
           {(background.image || background.video) && (
             <button
               className="tool-btn"
-              onClick={() =>
-                setBackground((b) => ({ ...b, image: undefined, video: undefined }))
-              }
+               onClick={() => {
+                 setBackground((b) => ({ ...b, image: undefined, video: undefined }));
+                 setCameraMotion(null);
+                 setTerrainPoints(null);
+               }}
             >
               Remover fundo
             </button>
@@ -477,6 +518,18 @@ export function Editor() {
           </button>
         </div>
       </header>
+
+      {background.video && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-panel px-4 py-1.5 text-xs">
+          <span className="text-muted-foreground">CGI</span>
+          <button className="tool-btn" onClick={trackCamera} disabled={tracking !== null}>
+            {tracking !== null ? `Analisando ${Math.round(tracking * 100)}%` : "Rastrear câmera"}
+          </button>
+          <button className="tool-btn" onClick={detectTerrain}>Detectar terreno</button>
+          {cameraMotion && <span className="text-primary">Câmera analisada</span>}
+          {terrainPoints && <button className="tool-btn" onClick={() => setTerrainPoints(null)}>Ocultar pontos</button>}
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         <aside className="w-60 shrink-0 border-r border-border bg-panel">
@@ -526,6 +579,9 @@ export function Editor() {
               background={background}
               onEditText={editText}
               playing={playing}
+              cameraMotion={cameraMotion}
+              terrainPoints={terrainPoints}
+              onPickTerrain={pickTerrain}
             />
           </div>
           <div className="h-72 shrink-0 border-t border-border">

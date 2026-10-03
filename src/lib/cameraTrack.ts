@@ -32,9 +32,11 @@ function loadVideoEl(src: string): Promise<HTMLVideoElement> {
 }
 
 function seek(v: HTMLVideoElement, t: number): Promise<void> {
+  const target = Math.min(t, Math.max(0, v.duration - 0.05));
+  if (Math.abs(v.currentTime - target) < 0.001) return Promise.resolve();
   return new Promise((resolve) => {
     v.addEventListener("seeked", () => resolve(), { once: true });
-    v.currentTime = Math.min(t, Math.max(0, v.duration - 0.05));
+    v.currentTime = target;
   });
 }
 
@@ -139,6 +141,20 @@ export function cameraOffsetAt(m: CameraMotion, time: number): { x: number; y: n
     }
   }
   return { x: 0, y: 0 };
+}
+
+/** Approximate viewpoint change from image translation; not a 3D camera solve. */
+export function cameraViewAt(m: CameraMotion, time: number) {
+  const offset = cameraOffsetAt(m, time);
+  return {
+    x: Math.max(-35, Math.min(35, -offset.y * 0.06)),
+    y: Math.max(-70, Math.min(70, offset.x * 0.08)),
+  };
+}
+
+export function isOutsideFrame(x: number, y: number, w: number, h: number, W: number, H: number) {
+  return x + w / 2 < -W / 2 || x - w / 2 > W / 2 ||
+    y + h / 2 < -H / 2 || y - h / 2 > H / 2;
 }
 
 /**

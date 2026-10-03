@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Keep destructive image editing in browser-side canvas helpers so imported assets remain local and exports receive flattened transparent PNG data URLs.
+- Keep background-video tracking and approximate viewpoint calculations in a shared browser-side helper so stage preview and recorded frames use identical offsets and visibility rules.
