@@ -688,6 +688,8 @@ export function Editor() {
             onToggleKeyframe={toggleKeyframe}
             onSetEasing={setEasing}
             onSplitImage={addImageLayer}
+            onBakeKeyframes={bakeKeyframes}
+            hasCameraMotion={!!cameraMotion}
           />
         </aside>
       </div>

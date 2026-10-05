@@ -20,6 +20,8 @@ interface Props {
   onToggleKeyframe: (id: string, key: PropKey) => void;
   onSetEasing: (id: string, key: PropKey, easing: EasingName) => void;
   onSplitImage: (src: string, w: number, h: number, name: string) => void;
+  onBakeKeyframes: (id: string, step?: number) => void;
+  hasCameraMotion: boolean;
 }
 
 const BLENDS: { value: BlendMode; label: string }[] = [
@@ -37,7 +39,10 @@ export function Inspector({
   onToggleKeyframe,
   onSetEasing,
   onSplitImage,
+  onBakeKeyframes,
+  hasCameraMotion,
 }: Props) {
+  const [bakeStep, setBakeStep] = useState(0.25);
   const [graphProp, setGraphProp] = useState<PropKey>("x");
 
   if (!layer) {
@@ -285,8 +290,26 @@ export function Inspector({
              </label>
            )}
           <p className="text-[10px] text-muted-foreground">
-             Analise o vídeo de fundo para fixar o objeto. O giro é aproximado; ajuste X/Y/Z com keyframes quando necessário.
+            {hasCameraMotion
+              ? "Gere keyframes automáticos de X, Y e giro X/Y/Z a partir do movimento do vídeo e da inclinação do terreno."
+              : "Primeiro clique em \"Rastrear câmera\" (e opcionalmente \"Detectar terreno\") na barra acima do palco."}
           </p>
+          <label className="block text-xs text-muted-foreground">
+            Densidade dos keyframes
+            <select value={bakeStep} onChange={(e) => setBakeStep(Number(e.target.value))} className="num-field mt-1">
+              <option value={1}>1 por segundo (fácil de editar)</option>
+              <option value={0.5}>2 por segundo</option>
+              <option value={0.25}>4 por segundo</option>
+              <option value={0.1}>10 por segundo (bem suave)</option>
+            </select>
+          </label>
+          <button
+            onClick={() => onBakeKeyframes(layer.id, bakeStep)}
+            disabled={!hasCameraMotion}
+            className="w-full rounded bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+          >
+            Gerar keyframes automáticos
+          </button>
         </div>
       )}
 
