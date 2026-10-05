@@ -305,7 +305,6 @@ export function Inspector({
           </label>
           <button
             onClick={() => onBakeKeyframes(layer.id, bakeStep)}
-            disabled={!hasCameraMotion}
             className="w-full rounded bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
           >
             Gerar keyframes automáticos
