@@ -361,7 +361,7 @@ export function Editor() {
           const y = v.y + off.y;
           keys.x.push({ time, value: Math.round(x) });
           keys.y.push({ time, value: Math.round(y) });
-          const view = cameraViewAt(cameraMotion, time);
+          const view = cameraViewAt(m, time);
           keys.rotX.push({ time, value: Math.round(v.rotX + view.x) });
           keys.rotY.push({ time, value: Math.round(v.rotY + view.y) });
           let rotZ = v.rotZ;
@@ -384,6 +384,7 @@ export function Editor() {
         return { ...layer, tracks, followCamera: false, cameraAngle: false };
       }),
     );
+    setTimeout(() => alert(`Pronto! ${count} keyframes criados em X, Y e giro X/Y/Z. Veja na linha do tempo.`), 0);
   };
 
   const exportMp4 = async () => {
