@@ -347,7 +347,7 @@ export function Editor() {
           keys.rotX.push({ time, value: Math.round(v.rotX + view.x) });
           keys.rotY.push({ time, value: Math.round(v.rotY + view.y) });
           let rotZ = v.rotZ;
-          if (terrainPoints.length) {
+          if (terrainPoints?.length) {
             const sx = (x - off.x + 640) / 1280;
             const near = terrainPoints.reduce((a, b) => (Math.abs(b.x - sx) < Math.abs(a.x - sx) ? b : a));
             rotZ = near.tilt;
