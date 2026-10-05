@@ -7,6 +7,8 @@ import { export3D } from "@/lib/export3d";
 import {
   analyzeCameraMotion,
   analyzeTerrain,
+  cameraOffsetAt,
+  cameraViewAt,
   type CameraMotion,
   type TerrainPoint,
 } from "@/lib/cameraTrack";
@@ -319,6 +321,51 @@ export function Editor() {
     setValue(selected.id, "y", Math.round(point.y * 720 - 360));
     setValue(selected.id, "rotZ", Math.round(point.tilt));
     updateLayer(selected.id, { followCamera: true });
+  };
+
+  // Bakes tracked camera motion + terrain tilt into real keyframes (x, y, rotX, rotY, rotZ).
+  const bakeKeyframes = (layerId: string, step = 0.25) => {
+    if (!cameraMotion) {
+      alert("Clique em \"Rastrear câmera\" primeiro (barra abaixo do topo, com o vídeo de fundo).");
+      return;
+    }
+    setLayers((prev) =>
+      prev.map((layer) => {
+        if (layer.id !== layerId) return layer;
+        const tracks = { ...layer.tracks };
+        const keys: Record<"x" | "y" | "rotX" | "rotY" | "rotZ", { time: number; value: number }[]> =
+          { x: [], y: [], rotX: [], rotY: [], rotZ: [] };
+        for (let t = 0; t <= duration + 1e-6; t += step) {
+          const time = Math.min(duration, Math.round(t * 1000) / 1000);
+          const v = sampleLayer({ ...layer, followCamera: false }, time);
+          const off = cameraOffsetAt(cameraMotion, time);
+          const x = v.x + off.x;
+          const y = v.y + off.y;
+          keys.x.push({ time, value: Math.round(x) });
+          keys.y.push({ time, value: Math.round(y) });
+          const view = cameraViewAt(cameraMotion, time);
+          keys.rotX.push({ time, value: Math.round(v.rotX + view.x) });
+          keys.rotY.push({ time, value: Math.round(v.rotY + view.y) });
+          let rotZ = v.rotZ;
+          if (terrainPoints?.length) {
+            const sx = (x - off.x + 640) / 1280;
+            const near = terrainPoints.reduce((a, b) => (Math.abs(b.x - sx) < Math.abs(a.x - sx) ? b : a));
+            rotZ = near.tilt;
+          }
+          keys.rotZ.push({ time, value: Math.round(rotZ) });
+        }
+        for (const k of Object.keys(keys) as (keyof typeof keys)[]) {
+          tracks[k] = keys[k].map((kf) => ({
+            id: Math.random().toString(36).slice(2, 10),
+            time: kf.time,
+            value: kf.value,
+            easing: "linear" as const,
+          }));
+        }
+        // Motion is now baked, so stop the live offset to avoid applying it twice.
+        return { ...layer, tracks, followCamera: false, cameraAngle: false };
+      }),
+    );
   };
 
   const exportMp4 = async () => {
@@ -641,6 +688,8 @@ export function Editor() {
             onToggleKeyframe={toggleKeyframe}
             onSetEasing={setEasing}
             onSplitImage={addImageLayer}
+            onBakeKeyframes={bakeKeyframes}
+            hasCameraMotion={!!cameraMotion}
           />
         </aside>
       </div>
