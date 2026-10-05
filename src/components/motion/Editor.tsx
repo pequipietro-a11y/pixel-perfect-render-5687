@@ -324,21 +324,39 @@ export function Editor() {
   };
 
   // Bakes tracked camera motion + terrain tilt into real keyframes (x, y, rotX, rotY, rotZ).
-  const bakeKeyframes = (layerId: string, step = 0.25) => {
-    if (!cameraMotion) {
-      alert("Clique em \"Rastrear câmera\" primeiro (barra abaixo do topo, com o vídeo de fundo).");
-      return;
+  const bakeKeyframes = async (layerId: string, step = 0.25) => {
+    let motion = cameraMotion;
+    if (!motion) {
+      if (!background.video) {
+        alert("Primeiro adicione um \"Vídeo de fundo\" no topo da tela.");
+        return;
+      }
+      setTracking(0);
+      try {
+        motion = await analyzeCameraMotion(background.video, duration, setTracking);
+        setCameraMotion(motion);
+      } catch (error) {
+        console.error("Falha na análise de câmera", error);
+        alert("Não foi possível analisar o movimento deste vídeo.");
+        return;
+      } finally {
+        setTracking(null);
+      }
     }
+    const m = motion;
+    let count = 0;
     setLayers((prev) =>
       prev.map((layer) => {
         if (layer.id !== layerId) return layer;
         const tracks = { ...layer.tracks };
         const keys: Record<"x" | "y" | "rotX" | "rotY" | "rotZ", { time: number; value: number }[]> =
           { x: [], y: [], rotX: [], rotY: [], rotZ: [] };
+        // Anchor at the pose at time 0 so re-baking doesn't stack offsets.
+        const v = sampleLayer({ ...layer, followCamera: false }, 0);
         for (let t = 0; t <= duration + 1e-6; t += step) {
+          count++;
           const time = Math.min(duration, Math.round(t * 1000) / 1000);
-          const v = sampleLayer({ ...layer, followCamera: false }, time);
-          const off = cameraOffsetAt(cameraMotion, time);
+          const off = cameraOffsetAt(m, time);
           const x = v.x + off.x;
           const y = v.y + off.y;
           keys.x.push({ time, value: Math.round(x) });
