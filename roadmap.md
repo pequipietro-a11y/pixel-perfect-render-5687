@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Adicionar texto em perspectiva e aba dedicada de animação 2D/3D
+- [ ] Criar rigs hierárquicos, vincular camadas e animar ossos com keyframes
+- [ ] Aplicar poses de ossos de modelos GLB e verificar palco/exportação
+
 - [x] Substituir recorte retangular por laço de seleção livre
 - [x] Adicionar chroma key com conta-gotas e tolerância
 - [x] Remover automaticamente o fundo conectado de PNGs opacos
