@@ -133,6 +133,8 @@ export interface Layer {
   text3d?: boolean | undefined;
   /** Extrusion depth for 3D text (px). */
   depth?: number | undefined;
+  rig?: import("./rig").Rig | undefined;
+  rigBinding?: { layerId: string; boneId: string } | undefined;
   width: number;
   height: number;
   radius: number;
