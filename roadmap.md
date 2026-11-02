@@ -1,7 +1,7 @@
 # Roadmap
 
-- [ ] Adicionar texto em perspectiva e aba dedicada de animação 2D/3D
-- [ ] Criar rigs hierárquicos, vincular camadas e animar ossos com keyframes
+- [x] Adicionar texto em perspectiva e aba dedicada de animação 2D/3D
+- [x] Criar rigs hierárquicos, vincular camadas e animar ossos com keyframes
 - [ ] Aplicar poses de ossos de modelos GLB e verificar palco/exportação
 
 - [x] Substituir recorte retangular por laço de seleção livre
@@ -15,3 +15,4 @@
 - [x] Conferir análise, posicionamento, texto 3D e vídeo MP4 no navegador
 - [ ] Validar recorte livre/chroma key e transparência com imagens do usuário (aguarda imagens de exemplo)
 - [ ] Validar mudança real de câmera, perspectiva e saída de quadro com filmagem do usuário (aguarda vídeo de exemplo)
+- [x] Juntar várias camadas selecionadas em uma só
