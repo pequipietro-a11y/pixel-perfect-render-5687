@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { type Layer } from "@/lib/motion";
-import { sampleRigLayer } from "@/lib/rig";
+import { boneMatrix, sampleRigLayer } from "@/lib/rig";
+import { sampleLayer } from "@/lib/motion";
+import { Vector3 } from "three";
 import type { Background } from "@/lib/render";
 import {
   cameraOffsetAt,
@@ -200,6 +202,26 @@ export function CanvasStage({
               </div>
             );
           })}
+          {(() => {
+            const owner = layers.find((l) => l.id === selectedId && l.rig);
+            if (!owner?.rig) return null;
+            const a = sampleLayer(owner, time);
+            const pt = (id: string) => new Vector3().applyMatrix4(boneMatrix(owner.rig!, id, time));
+            return (
+              <svg className="pointer-events-none absolute overflow-visible" style={{ left: 0, top: 0 }} width={1} height={1}>
+                {owner.rig.bones.map((b) => {
+                  const p = pt(b.id);
+                  const q = b.parentId ? pt(b.parentId) : null;
+                  return (
+                    <g key={b.id}>
+                      {q && <line x1={a.x + q.x} y1={a.y + q.y} x2={a.x + p.x} y2={a.y + p.y} stroke="var(--primary)" strokeWidth={4} strokeLinecap="round" />}
+                      <circle cx={a.x + p.x} cy={a.y + p.y} r={6} fill="var(--primary)" />
+                    </g>
+                  );
+                })}
+              </svg>
+            );
+          })()}
           {terrainPoints?.map((p, i) => (
             <button
               key={i}

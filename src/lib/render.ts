@@ -209,14 +209,28 @@ function drawFrame(
       layer.blend === "normal" ? "source-over" : layer.blend;
 
     // True 3D perspective for media layers rotated in X/Y.
-    if ((layer.kind === "image" || layer.kind === "video") && (v.rotX || v.rotY)) {
-      const src: CanvasImageSource | undefined =
+    let textCanvas: HTMLCanvasElement | undefined;
+    if (layer.kind === "text" && !layer.text3d && (v.rotX || v.rotY)) {
+      textCanvas = document.createElement("canvas");
+      textCanvas.width = Math.max(1, layer.width);
+      textCanvas.height = Math.max(1, layer.height);
+      const tc = textCanvas.getContext("2d");
+      if (tc) {
+        tc.fillStyle = layer.color;
+        tc.font = `bold ${layer.fontSize ?? 48}px "Space Grotesk", sans-serif`;
+        tc.textAlign = "center";
+        tc.textBaseline = "middle";
+        tc.fillText(layer.text ?? "", layer.width / 2, layer.height / 2);
+      }
+    }
+    if ((layer.kind === "image" || layer.kind === "video" || textCanvas) && (v.rotX || v.rotY)) {
+      const src: CanvasImageSource | undefined = textCanvas ? textCanvas :
         layer.kind === "image"
           ? layer.src ? images.get(layer.src) : undefined
           : layer.src ? videos.get(layer.src) : undefined;
       if (src) {
-        const sw = layer.kind === "image" ? (src as HTMLImageElement).width : (src as HTMLVideoElement).videoWidth;
-        const sh = layer.kind === "image" ? (src as HTMLImageElement).height : (src as HTMLVideoElement).videoHeight;
+        const sw = textCanvas ? textCanvas.width : layer.kind === "image" ? (src as HTMLImageElement).width : (src as HTMLVideoElement).videoWidth;
+        const sh = textCanvas ? textCanvas.height : layer.kind === "image" ? (src as HTMLImageElement).height : (src as HTMLVideoElement).videoHeight;
         if (sw && sh) {
           const r = containRect(sw, sh, layer.width, layer.height);
           const tmp = warpCanvas(W, H);
