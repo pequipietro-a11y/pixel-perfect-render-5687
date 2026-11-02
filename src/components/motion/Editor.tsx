@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CanvasStage } from "@/components/motion/CanvasStage";
 import { Inspector } from "@/components/motion/Inspector";
+import { RigPanel } from "./RigPanel";
 import { LayersPanel } from "@/components/motion/LayersPanel";
 import { Timeline } from "@/components/motion/Timeline";
 import { export3D } from "@/lib/export3d";
@@ -30,6 +31,8 @@ import {
 export function Editor() {
   const [layers, setLayers] = useState<Layer[]>(() => starterProject());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [multiIds, setMultiIds] = useState<string[]>([]);
+  const [rightTab, setRightTab] = useState<"props" | "anim">("props");
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(4);
   const [fps, setFps] = useState(30);
@@ -230,6 +233,30 @@ export function Editor() {
   };
 
   /** Adds an image layer from a cropped piece (used by the crop tool). */
+  /** Flattens the multi-selected layers into one image layer at the current time. */
+  const mergeLayers = async () => {
+    if (multiIds.length < 2) return;
+    const { flattenLayers } = await import("@/lib/render");
+    const res = await flattenLayers(layers, multiIds, time).catch(() => null);
+    if (!res) return alert("Não foi possível juntar essas camadas.");
+    const layer = createLayer("image", layers.length);
+    layer.src = res.src;
+    layer.name = "Grupo junto";
+    layer.width = res.w;
+    layer.height = res.h;
+    layer.radius = 0;
+    layer.base.x = Math.round(res.x);
+    layer.base.y = Math.round(res.y);
+    setLayers((ls) => {
+      const idx = Math.min(...multiIds.map((id) => ls.findIndex((l) => l.id === id)).filter((i) => i >= 0));
+      const rest = ls.filter((l) => !multiIds.includes(l.id));
+      rest.splice(Math.min(idx, rest.length), 0, layer);
+      return rest;
+    });
+    setMultiIds([]);
+    setSelectedId(layer.id);
+  };
+
   const addImageLayer = (src: string, w: number, h: number, name: string) => {
     const layer = createLayer("image", layers.length);
     const s = Math.min(1, 500 / Math.max(w, h));
@@ -602,7 +629,17 @@ export function Editor() {
           <LayersPanel
             layers={layers}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={(id, additive) => {
+              if (additive) {
+                setMultiIds((m) => {
+                  const base = m.length ? m : selectedId && selectedId !== id ? [selectedId] : [];
+                  return base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+                });
+              } else setMultiIds([]);
+              setSelectedId(id);
+            }}
+            multiIds={multiIds}
+            onMerge={mergeLayers}
             onAdd={addLayer}
             onToggleVisible={(id) =>
               patchLayer(id, (l) => ({ ...l, visible: !l.visible }))
@@ -699,6 +736,18 @@ export function Editor() {
         </main>
 
         <aside className="w-72 shrink-0 border-l border-border bg-panel">
+          <div className="flex border-b border-border text-xs">
+            {(["props", "anim"] as const).map((t) => (
+              <button key={t} onClick={() => setRightTab(t)}
+                className={`flex-1 px-2 py-2 ${rightTab === t ? "border-b-2 border-primary text-foreground" : "text-muted-foreground"}`}>
+                {t === "props" ? "Propriedades" : "Animação 2D/3D"}
+              </button>
+            ))}
+          </div>
+          <div className="h-[calc(100%-2.25rem)] overflow-y-auto">
+          {rightTab === "anim" ? (
+            <RigPanel layers={layers} layer={selected} time={time} fps={fps} onUpdateLayer={updateLayer} />
+          ) : (
           <Inspector
             layer={selected}
             time={time}
@@ -710,6 +759,8 @@ export function Editor() {
             onBakeKeyframes={bakeKeyframes}
             hasCameraMotion={!!cameraMotion}
           />
+          )}
+          </div>
         </aside>
       </div>
     </div>

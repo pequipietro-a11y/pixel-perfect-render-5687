@@ -80,7 +80,7 @@ export function Inspector({
             layer.kind === "image" ||
             layer.kind === "video" ||
              layer.kind === "model3d" ||
-             (layer.kind === "text" && !!layer.text3d),
+             layer.kind === "text",
         ).map((key) => {
           const propertyTrack = layer.tracks[key] ?? [];
           const hasKeys = propertyTrack.length > 0;
