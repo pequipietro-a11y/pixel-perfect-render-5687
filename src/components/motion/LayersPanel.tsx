@@ -3,7 +3,9 @@ import type { Layer, LayerKind } from "@/lib/motion";
 interface Props {
   layers: Layer[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, additive?: boolean) => void;
+  multiIds: string[];
+  onMerge: () => void;
   onAdd: (kind: LayerKind) => void;
   onToggleVisible: (id: string) => void;
   onDelete: (id: string) => void;
@@ -24,6 +26,8 @@ export function LayersPanel({
   onImportImage,
   onImportVideo,
   onImport3D,
+  multiIds,
+  onMerge,
 }: Props) {
   return (
     <div className="flex h-full flex-col gap-3 overflow-hidden p-3">
@@ -87,13 +91,18 @@ export function LayersPanel({
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Camadas
         </h2>
+        <button className="tool-btn mt-2 w-full" disabled={multiIds.length < 2} onClick={onMerge}
+          title="Segure Ctrl ou Shift e clique nas camadas para selecionar várias">
+          Juntar {multiIds.length >= 2 ? `(${multiIds.length})` : "camadas"}
+        </button>
+        <p className="mt-1 text-[10px] text-muted-foreground">Ctrl/Shift + clique para selecionar várias.</p>
         <div className="mt-2 flex-1 space-y-1 overflow-y-auto pr-1">
           {layers.map((layer, i) => (
             <div
               key={layer.id}
-              onClick={() => onSelect(layer.id)}
+              onClick={(e) => onSelect(layer.id, e.ctrlKey || e.metaKey || e.shiftKey)}
               className={`group flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors ${
-                layer.id === selectedId
+                layer.id === selectedId || multiIds.includes(layer.id)
                   ? "border-primary bg-panel-raised"
                   : "border-border bg-panel hover:bg-panel-raised"
               }`}

@@ -405,7 +405,7 @@ export async function flattenLayers(all: Layer[], ids: string[], time: number, W
   }
   const c = document.createElement("canvas"); c.width = W; c.height = H;
   const ctx = c.getContext("2d"); if (!ctx) return null;
-  drawFrame(ctx, W, H, picked.map((l) => (l.rigBinding && !ids.includes(l.rigBinding.layerId) ? l : l)), time, { color: "rgba(0,0,0,0)" }, images, models, videos);
+  drawFrame(ctx, W, H, picked, time, { color: "rgba(0,0,0,0)" }, images, models, videos);
   models.forEach((m) => m.dispose());
   const d = ctx.getImageData(0, 0, W, H).data;
   let x0 = W, y0 = H, x1 = -1, y1 = -1;
