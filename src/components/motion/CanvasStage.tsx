@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { sampleLayer, type Layer } from "@/lib/motion";
+import { type Layer } from "@/lib/motion";
+import { sampleRigLayer } from "@/lib/rig";
 import type { Background } from "@/lib/render";
 import {
   cameraOffsetAt,
@@ -106,7 +107,7 @@ export function CanvasStage({
         >
           {[...layers].reverse().map((layer) => {
             if (!layer.visible) return null;
-            const v = sampleLayer(layer, time);
+            const v = sampleRigLayer(layer, layers, time);
             // Camera-follow: shift the layer opposite to the tracked camera motion.
             if (layer.followCamera && cameraMotion) {
               const off = cameraOffsetAt(cameraMotion, time);

@@ -1,4 +1,5 @@
-import { sampleLayer, type Layer } from "@/lib/motion";
+import { type Layer } from "@/lib/motion";
+import { sampleRigLayer } from "@/lib/rig";
 import { cameraOffsetAt, cameraViewAt, isOutsideFrame, type CameraMotion } from "@/lib/cameraTrack";
 
 export interface Background {
@@ -188,7 +189,7 @@ function drawFrame(
 
   for (const layer of [...layers].reverse()) {
     if (!layer.visible) continue;
-    const v = sampleLayer(layer, time);
+    const v = sampleRigLayer(layer, layers, time);
     if (layer.followCamera && cameraMotion) {
       const off = cameraOffsetAt(cameraMotion, time);
       v.x += off.x;
@@ -387,4 +388,33 @@ export async function exportVideo(opts: {
   await done;
   for (const model of models.values()) model.dispose();
   return { blob: new Blob(chunks, { type: mime.split(";")[0] ?? mime }), ext };
+}
+
+/** Flattens several layers at a given time into one transparent PNG, cropped to content. */
+export async function flattenLayers(all: Layer[], ids: string[], time: number, W = 1280, H = 720) {
+  const picked = all.filter((l) => ids.includes(l.id));
+  const images = new Map<string, HTMLImageElement>();
+  for (const l of picked) if (l.kind === "image" && l.src) images.set(l.src, await loadImage(l.src));
+  const videos = new Map<string, HTMLVideoElement>();
+  for (const l of picked) if (l.kind === "video" && l.src) {
+    const v = await loadVideo(l.src); await seekVideo(v, time); videos.set(l.src, v);
+  }
+  const models = new Map<string, import("@/lib/scene3d").ModelRenderer>();
+  for (const l of picked) if (l.kind === "model3d" || (l.kind === "text" && l.text3d)) {
+    const m = await buildExportRenderer(l); if (m) models.set(l.id, m);
+  }
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d"); if (!ctx) return null;
+  drawFrame(ctx, W, H, picked.map((l) => (l.rigBinding && !ids.includes(l.rigBinding.layerId) ? l : l)), time, { color: "rgba(0,0,0,0)" }, images, models, videos);
+  models.forEach((m) => m.dispose());
+  const d = ctx.getImageData(0, 0, W, H).data;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if ((d[(y * W + x) * 4 + 3] ?? 0) > 2) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return null;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const out = document.createElement("canvas"); out.width = w; out.height = h;
+  out.getContext("2d")?.drawImage(c, x0, y0, w, h, 0, 0, w, h);
+  return { src: out.toDataURL("image/png"), w, h, x: x0 + w / 2 - W / 2, y: y0 + h / 2 - H / 2 };
 }
