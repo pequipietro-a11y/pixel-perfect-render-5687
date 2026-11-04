@@ -135,9 +135,34 @@ export function CanvasStage({
               .filter(Boolean)
               .join(" ");
 
+            // Ghost ("sombra") of where the selected layer was at the previous keyframe.
+            let ghost: ReturnType<typeof sampleRigLayer> | null = null;
+            if (selected && !playing) {
+              const times: number[] = [];
+              for (const tr of Object.values(layer.tracks ?? {})) for (const k of tr ?? []) times.push(k.time);
+              for (const b of layer.rig?.bones ?? []) for (const tr of Object.values(b.tracks)) for (const k of tr) times.push(k.time);
+              const prev = times.filter((t) => t < time - 1e-3).sort((a, b) => b - a)[0];
+              if (prev !== undefined) {
+                const g = sampleRigLayer(layer, layers, prev);
+                if (Math.abs(g.x - v.x) > 0.5 || Math.abs(g.y - v.y) > 0.5 || Math.abs((g.rotation + g.rotZ) - (v.rotation + v.rotZ)) > 0.5) ghost = g;
+              }
+            }
+
             return (
+              <Fragment key={layer.id}>
+              {ghost && (
+                <div
+                  className="pointer-events-none absolute border-2 border-dashed border-primary bg-primary/15"
+                  style={{
+                    width: layer.width, height: layer.height,
+                    left: -layer.width / 2, top: -layer.height / 2,
+                    borderRadius: layer.kind === "ellipse" ? "50%" : layer.radius,
+                    opacity: 0.6,
+                    transform: `translate(${ghost.x}px, ${ghost.y}px) rotate(${ghost.rotation + ghost.rotZ}deg) scale(${ghost.scaleX / 100}, ${ghost.scaleY / 100})`,
+                  }}
+                />
+              )}
               <div
-                key={layer.id}
                 onPointerDown={(e) => handlePointerDown(e, layer.id)}
                 onDoubleClick={() => layer.kind === "text" && onEditText?.(layer.id)}
                 className={`absolute cursor-move select-none ${
