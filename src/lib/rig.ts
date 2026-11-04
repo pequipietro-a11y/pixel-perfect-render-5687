@@ -36,6 +36,13 @@ export function boneMatrix(rig: Rig, id: string, time: number | null, visited = 
 /** Rigid cut-out skinning: bind-space delta shared by stage and recorded frames. */
 export function sampleRigLayer(layer: Layer, layers: Layer[], time: number) {
   const v = sampleLayer(layer, time);
+  // The layer that owns the rig follows its root bone's animation.
+  const root = layer.rig?.bones.find(b => !b.parentId);
+  if (root && !root.sourceName) {
+    const p = sampleBone(root, time);
+    v.x += p.x - root.base.x; v.y += p.y - root.base.y;
+    v.rotX += p.rotX - root.base.rotX; v.rotY += p.rotY - root.base.rotY; v.rotZ += p.rotZ - root.base.rotZ;
+  }
   const binding = layer.rigBinding;
   const owner = binding ? layers.find(l => l.id === binding.layerId) : undefined;
   if (!binding || !owner?.rig) return v;

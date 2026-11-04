@@ -38,7 +38,7 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
   const setVal = (k: BoneKey, value: number) =>
     patchBone((b) => {
       const tr = b.tracks[k];
-      if (!tr.length) return { ...b, base: { ...b.base, [k]: value } };
+      // Auto-key: editing a value always records a keyframe at the current time.
       const ex = tr.find((x) => Math.abs(x.time - t) < 1e-3);
       const next = ex ? tr.map((x) => (x.id === ex.id ? { ...x, value } : x))
         : [...tr, { id: uid("k"), time: t, value, easing: "easyEase" as const }].sort((a, b2) => a.time - b2.time);
@@ -108,7 +108,7 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
               </div>
             );
           })}
-          <p className="text-muted-foreground">Clique no losango para gravar um keyframe do osso no tempo atual. Camadas vinculadas a este osso se movem junto.</p>
+          <p className="text-muted-foreground">Mova a agulha da linha do tempo e mude um valor: o keyframe é gravado sozinho. O osso principal move esta camada; camadas vinculadas a um osso se movem junto.</p>
         </section>
       )}
 
