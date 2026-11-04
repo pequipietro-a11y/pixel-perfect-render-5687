@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { type Layer } from "@/lib/motion";
 import { boneMatrix, sampleRigLayer } from "@/lib/rig";
 import { sampleLayer } from "@/lib/motion";
@@ -225,6 +225,7 @@ export function CanvasStage({
                   />
                 )}
               </div>
+              </Fragment>
             );
           })}
           {(() => {
