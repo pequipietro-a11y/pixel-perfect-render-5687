@@ -59,7 +59,7 @@ export function CanvasStage({
 }: Props) {
   const dragRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const toolDrag = useRef<{ id: string; mode: "rotate" | "scale" | "bone"; x: number; y: number; cx: number; cy: number; rotation: number; scaleX: number; scaleY: number; boneId?: string } | null>(null);
+  const toolDrag = useRef<{ id: string; mode: "rotate" | "scale" | "bone"; x: number; y: number; cx: number; cy: number; rotation: number; scaleX: number; scaleY: number; boneId?: string | undefined } | null>(null);
 
   const startTool = (e: React.PointerEvent, layer: Layer, mode: "rotate" | "scale" | "bone", boneId?: string) => {
     e.stopPropagation();
