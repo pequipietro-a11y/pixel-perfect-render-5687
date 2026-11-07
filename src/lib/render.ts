@@ -1,5 +1,6 @@
 import { type Layer } from "@/lib/motion";
 import { sampleRigLayer } from "@/lib/rig";
+import { puppetDeformer } from "@/lib/puppet";
 import { cameraOffsetAt, cameraViewAt, isOutsideFrame, type CameraMotion } from "@/lib/cameraTrack";
 
 export interface Background {
@@ -66,7 +67,7 @@ function warpCanvas(W: number, H: number) {
 }
 
 /** Projects a rectangle with CSS-like perspective(900px) rotateX/Y/Z and draws it as a triangle mesh. */
-function drawPerspective(
+export function drawPerspective(
   ctx: CanvasRenderingContext2D,
   src: CanvasImageSource,
   sw: number,
@@ -76,6 +77,7 @@ function drawPerspective(
   v: Record<import("@/lib/motion").PropKey, number>,
   W: number,
   H: number,
+  deform?: ReturnType<typeof puppetDeformer>,
 ) {
   const d = Math.PI / 180;
   const ax = (v.rotX ?? 0) * d;
@@ -88,9 +90,10 @@ function drawPerspective(
   const cy = H / 2 + (v.y ?? 0);
   // CSS order: rotateX, rotateY, rotateZ, scale applied right-to-left to the point.
   const project = (px: number, py: number): [number, number] => {
-    let x = px * sx;
-    let y = py * sy;
-    let z = 0;
+    const p = deform?.(px, py);
+    let x = (p?.x ?? px) * sx;
+    let y = (p?.y ?? py) * sy;
+    let z = p?.z ?? 0;
     // rotateZ
     [x, y] = [x * Math.cos(az) - y * Math.sin(az), x * Math.sin(az) + y * Math.cos(az)];
     // rotateY
@@ -100,7 +103,7 @@ function drawPerspective(
     const k = P / Math.max(1, P - z);
     return [cx + x * k, cy + y * k];
   };
-  const N = 10;
+  const N = deform ? 24 : 10;
   const grid: [number, number][][] = [];
   for (let j = 0; j <= N; j++) {
     const row: [number, number][] = [];
@@ -223,7 +226,8 @@ function drawFrame(
         tc.fillText(layer.text ?? "", layer.width / 2, layer.height / 2);
       }
     }
-    if ((layer.kind === "image" || layer.kind === "video" || textCanvas) && (v.rotX || v.rotY)) {
+    const deform = layer.kind === "image" && layer.rig?.deform ? puppetDeformer(layer.rig, time) : undefined;
+    if ((layer.kind === "image" || layer.kind === "video" || textCanvas) && (v.rotX || v.rotY || deform)) {
       const src: CanvasImageSource | undefined = textCanvas ? textCanvas :
         layer.kind === "image"
           ? layer.src ? images.get(layer.src) : undefined
@@ -237,7 +241,7 @@ function drawFrame(
           const tctx = tmp.getContext("2d");
           if (tctx) {
             tctx.clearRect(0, 0, W, H);
-            drawPerspective(tctx, src, sw, sh, r.w, r.h, v, W, H);
+            drawPerspective(tctx, src, sw, sh, r.w, r.h, v, W, H, deform);
             ctx.save();
             ctx.globalAlpha = alpha;
             ctx.globalCompositeOperation = blend;
