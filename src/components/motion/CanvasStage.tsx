@@ -1,5 +1,9 @@
 import { Fragment, useRef, useState } from "react";
-import { type Layer } from "@/lib/motion";
+import { snapToFrame, uid, type PropKey, type Layer } from "@/lib/motion";
+import { Button } from "@/components/ui/button";
+import { RotateCw } from "lucide-react";
+import { dragImageTransform } from "@/lib/manipulation";
+import { PuppetImageView } from "./PuppetImageView";
 import { boneMatrix, sampleRigLayer } from "@/lib/rig";
 import { sampleLayer } from "@/lib/motion";
 import { Vector3 } from "three";
@@ -24,6 +28,8 @@ interface Props {
   background: Background;
   onSelect: (id: string | null) => void;
   onMove: (id: string, dx: number, dy: number) => void;
+  onSetValue: (id: string, key: PropKey, value: number) => void;
+  onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onEditText?: (id: string) => void;
   playing?: boolean;
   cameraMotion?: CameraMotion | null;
@@ -41,6 +47,8 @@ export function CanvasStage({
   background = { color: "#1b2230" },
   onSelect,
   onMove,
+  onSetValue,
+  onUpdateLayer,
   onEditText,
   playing = false,
   cameraMotion = null,
@@ -49,6 +57,17 @@ export function CanvasStage({
 }: Props) {
   const dragRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const toolDrag = useRef<{ id: string; mode: "rotate" | "scale" | "bone"; x: number; y: number; cx: number; cy: number; rotation: number; scaleX: number; scaleY: number; boneId?: string } | null>(null);
+
+  const startTool = (e: React.PointerEvent, layer: Layer, mode: "rotate" | "scale" | "bone", boneId?: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const box = e.currentTarget.closest("[data-layer]")?.getBoundingClientRect();
+    if (!box) return;
+    const v = sampleRigLayer(layer, layers, time);
+    toolDrag.current = { id: layer.id, mode, x: e.clientX, y: e.clientY, cx: box.x + box.width / 2, cy: box.y + box.height / 2, rotation: v.rotation, scaleX: v.scaleX, scaleY: v.scaleY, boneId };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
 
   const handlePointerDown = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
@@ -59,6 +78,40 @@ export function CanvasStage({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    const tool = toolDrag.current;
+    if (tool) {
+      if (tool.mode !== "bone") {
+        const patch = dragImageTransform(tool.mode, tool.x - tool.cx, tool.y - tool.cy, e.clientX - tool.cx, e.clientY - tool.cy, tool.rotation, tool.scaleX, tool.scaleY);
+        if (patch.rotation !== undefined) onSetValue(tool.id, "rotation", patch.rotation);
+        if (patch.scaleX !== undefined) onSetValue(tool.id, "scaleX", patch.scaleX);
+        if (patch.scaleY !== undefined) onSetValue(tool.id, "scaleY", patch.scaleY);
+      } else {
+        const layer = layers.find((l) => l.id === tool.id);
+        const rig = layer?.rig;
+        const bone = rig?.bones.find((b) => b.id === tool.boneId);
+        if (!layer || !rig || !bone) return;
+        const v = sampleLayer(layer, time);
+        const angle = -(v.rotation + v.rotZ) * Math.PI / 180;
+        const dx = (e.clientX - tool.x) / zoom, dy = (e.clientY - tool.y) / zoom;
+        const delta = new Vector3((dx * Math.cos(angle) - dy * Math.sin(angle)) / (v.scaleX / 100 || 1), (dx * Math.sin(angle) + dy * Math.cos(angle)) / (v.scaleY / 100 || 1), 0);
+        const parent = bone.parentId ? boneMatrix(rig, bone.parentId, rig.editRest ? null : time).invert() : null;
+        if (parent) { const origin = new Vector3().applyMatrix4(parent); delta.applyMatrix4(parent).sub(origin); }
+        const t = snapToFrame(time, 30);
+        const bones = rig.bones.map((b) => {
+          if (b.id !== bone.id) return b;
+          const base = { ...b.base }, tracks = { ...b.tracks };
+          for (const k of ["x", "y"] as const) {
+            const value = (rig.editRest ? b.base[k] : sampleBone(b, time)[k]) + delta[k];
+            if (rig.editRest) base[k] = value;
+            else tracks[k] = [...b.tracks[k].filter((key) => Math.abs(key.time - t) > 1e-3), { id: uid("k"), time: t, value, easing: "easyEase" as const }].sort((a, b) => a.time - b.time);
+          }
+          return { ...b, base, tracks };
+        });
+        onUpdateLayer(layer.id, { rig: { ...rig, bones } });
+        toolDrag.current = { ...tool, x: e.clientX, y: e.clientY };
+      }
+      return;
+    }
     const drag = dragRef.current;
     if (!drag) return;
     const dx = (e.clientX - drag.x) / zoom;
@@ -70,6 +123,7 @@ export function CanvasStage({
 
   const endDrag = () => {
     dragRef.current = null;
+    toolDrag.current = null;
     setDragging(false);
   };
 
@@ -163,6 +217,7 @@ export function CanvasStage({
                 />
               )}
               <div
+                data-layer={layer.id}
                 onPointerDown={(e) => handlePointerDown(e, layer.id)}
                 onDoubleClick={() => layer.kind === "text" && onEditText?.(layer.id)}
                 className={`absolute cursor-move select-none ${
@@ -198,7 +253,9 @@ export function CanvasStage({
                   >
                     {layer.text}
                   </div>
-                ) : layer.kind === "image" && layer.src ? (
+                 ) : layer.kind === "image" && layer.src && layer.rig?.deform ? (
+                   <PuppetImageView layer={layer} time={time} />
+                 ) : layer.kind === "image" && layer.src ? (
                   <img
                     src={layer.src}
                     alt={layer.name}
@@ -224,15 +281,30 @@ export function CanvasStage({
                     }}
                   />
                 )}
+                 {selected && layer.kind === "image" && !playing && (
+                   <div className="pointer-events-none absolute inset-0 border border-accent">
+                     {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((corner) => (
+                       <Button key={corner} size="icon" variant="outline" aria-label={`Redimensionar imagem ${corner}`} title="Redimensionar imagem" className={`pointer-events-auto absolute h-3 w-3 rounded-none border-accent bg-background p-0 ${corner.startsWith("top") ? "-top-1.5" : "-bottom-1.5"} ${corner.endsWith("left") ? "-left-1.5" : "-right-1.5"} cursor-nwse-resize`} onPointerDown={(e) => startTool(e, layer, "scale")} />
+                     ))}
+                     <Button size="icon" variant="outline" title="Girar imagem" aria-label="Girar imagem" className="pointer-events-auto absolute -top-10 left-1/2 h-6 w-6 -translate-x-1/2 rounded-full border-accent p-0" onPointerDown={(e) => startTool(e, layer, "rotate")}><RotateCw /></Button>
+                   </div>
+                 )}
+                 {selected && layer.rig?.deform && !playing && layer.rig.bones.map((bone) => {
+                   const rig = layer.rig;
+                   if (!rig) return null;
+                   const p = new Vector3().applyMatrix4(boneMatrix(rig, bone.id, rig.editRest ? null : time));
+                   return <Button key={bone.id} aria-label={`Mover ${bone.name}`} title={`Mover ${bone.name}`} size="icon" className="absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background p-0" style={{ left: layer.width / 2 + p.x, top: layer.height / 2 + p.y }} onPointerDown={(e) => startTool(e, layer, "bone", bone.id)} />;
+                 })}
               </div>
               </Fragment>
             );
           })}
           {(() => {
             const owner = layers.find((l) => l.id === selectedId && l.rig);
-            if (!owner?.rig) return null;
+            if (!owner?.rig || owner.rig.deform) return null;
+            const rig = owner.rig;
             const a = sampleLayer(owner, time);
-            const pt = (id: string) => new Vector3().applyMatrix4(boneMatrix(owner.rig!, id, time));
+            const pt = (id: string) => new Vector3().applyMatrix4(boneMatrix(rig, id, time));
             return (
               <svg className="pointer-events-none absolute overflow-visible" style={{ left: 0, top: 0 }} width={1} height={1}>
                 {owner.rig.bones.map((b) => {
