@@ -673,12 +673,15 @@ export function Editor() {
             <CanvasStage
               layers={layers}
               time={time}
+              fps={fps}
               zoom={zoom}
               width={1280}
               height={720}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onMove={moveLayer}
+              onSetValue={setValue}
+              onUpdateLayer={updateLayer}
               background={background}
               onEditText={editText}
               playing={playing}

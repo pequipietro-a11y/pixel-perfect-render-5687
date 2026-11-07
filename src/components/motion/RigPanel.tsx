@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { snapToFrame, uid, type Layer } from "@/lib/motion";
 import { BONE_KEYS, createBone, sampleBone, type BoneKey, type Rig, type RigBone } from "@/lib/rig";
+import { createPuppetRig } from "@/lib/puppet";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   layers: Layer[];
@@ -37,6 +39,7 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
 
   const setVal = (k: BoneKey, value: number) =>
     patchBone((b) => {
+      if (rig?.editRest) return { ...b, base: { ...b.base, [k]: value } };
       const tr = b.tracks[k];
       // Auto-key: editing a value always records a keyframe at the current time.
       const ex = tr.find((x) => Math.abs(x.time - t) < 1e-3);
@@ -59,6 +62,15 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
     <div className="flex flex-col gap-4 p-3 text-xs">
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Esqueleto (rig)</h2>
+        {layer.kind === "image" && (
+          <div className="mt-2 space-y-2">
+            {!rig && <Button size="sm" variant="outline" className="w-full" onClick={() => setRig(createPuppetRig(layer.height))}>Criar marionete</Button>}
+            {rig && <>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={!!rig.deform} onChange={(e) => setRig({ ...rig, deform: e.target.checked })} />Distorção de marionete</label>
+              {rig.deform && <label className="flex items-center gap-2"><input type="checkbox" checked={!!rig.editRest} onChange={(e) => setRig({ ...rig, editRest: e.target.checked })} />Posicionar ossos (sem keyframes)</label>}
+            </>}
+          </div>
+        )}
         {!rig ? (
           <div className="mt-2 grid grid-cols-2 gap-1.5">
             <button className="tool-btn" onClick={() => { const b = createBone(null, 0); setBoneId(b.id); setRig({ mode: "2d", bones: [b] }); }}>Criar rig 2D</button>
@@ -103,7 +115,7 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
                   <span className={`block h-2.5 w-2.5 rotate-45 border ${atKey ? "border-primary bg-primary" : bone.tracks[k].length ? "border-primary" : "border-muted-foreground"}`} />
                 </button>
                 <span className="flex-1 text-muted-foreground">{LABELS[k]}</span>
-                <input type="number" className="num-field w-20" value={Math.round(pose[k] * 10) / 10}
+                <input aria-label={LABELS[k]} type="number" className="num-field w-20" value={Math.round((rig.editRest ? bone.base[k] : pose[k]) * 10) / 10}
                   onChange={(e) => setVal(k, Number(e.target.value))} />
               </div>
             );
@@ -121,7 +133,7 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
             onUpdateLayer(layer.id, { rigBinding: layerId && bId ? { layerId, boneId: bId } : undefined });
           }}>
           <option value="">Nenhum</option>
-          {owners.flatMap((o) => o.rig!.bones.map((b) => (
+          {owners.flatMap((o) => (o.rig?.bones ?? []).map((b) => (
             <option key={o.id + b.id} value={`${o.id}|${b.id}`}>{o.name} → {b.name}</option>
           )))}
         </select>

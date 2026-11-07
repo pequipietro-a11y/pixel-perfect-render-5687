@@ -12,7 +12,7 @@ export interface RigBone {
   base: Record<BoneKey, number>;
   tracks: Record<BoneKey, Keyframe[]>;
 }
-export interface Rig { mode: "2d" | "3d"; bones: RigBone[] }
+export interface Rig { mode: "2d" | "3d"; bones: RigBone[]; deform?: boolean; editRest?: boolean }
 export function createBone(parentId: string | null, index: number): RigBone {
   return { id: uid("bone"), name: `Osso ${index + 1}`, parentId, length: 80,
     base: { x: 0, y: parentId ? 80 : 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 },
@@ -38,7 +38,7 @@ export function sampleRigLayer(layer: Layer, layers: Layer[], time: number) {
   const v = sampleLayer(layer, time);
   // The layer that owns the rig follows its root bone's animation.
   const root = layer.rig?.bones.find(b => !b.parentId);
-  if (root && !root.sourceName) {
+  if (root && !root.sourceName && !layer.rig?.deform) {
     const p = sampleBone(root, time);
     v.x += p.x - root.base.x; v.y += p.y - root.base.y;
     v.rotX += p.rotX - root.base.rotX; v.rotY += p.rotY - root.base.rotY; v.rotZ += p.rotZ - root.base.rotZ;
