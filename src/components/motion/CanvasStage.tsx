@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCw } from "lucide-react";
 import { dragImageTransform } from "@/lib/manipulation";
 import { PuppetImageView } from "./PuppetImageView";
-import { boneMatrix, sampleRigLayer } from "@/lib/rig";
+import { boneMatrix, sampleBone, sampleRigLayer } from "@/lib/rig";
 import { sampleLayer } from "@/lib/motion";
 import { Vector3 } from "three";
 import type { Background } from "@/lib/render";
@@ -21,6 +21,7 @@ import { VideoLayerView } from "./VideoLayerView";
 interface Props {
   layers: Layer[];
   time: number;
+  fps: number;
   zoom: number;
   width: number;
   height: number;
@@ -40,6 +41,7 @@ interface Props {
 export function CanvasStage({
   layers,
   time,
+  fps,
   zoom,
   width,
   height,
@@ -96,7 +98,7 @@ export function CanvasStage({
         const delta = new Vector3((dx * Math.cos(angle) - dy * Math.sin(angle)) / (v.scaleX / 100 || 1), (dx * Math.sin(angle) + dy * Math.cos(angle)) / (v.scaleY / 100 || 1), 0);
         const parent = bone.parentId ? boneMatrix(rig, bone.parentId, rig.editRest ? null : time).invert() : null;
         if (parent) { const origin = new Vector3().applyMatrix4(parent); delta.applyMatrix4(parent).sub(origin); }
-        const t = snapToFrame(time, 30);
+        const t = snapToFrame(time, fps);
         const bones = rig.bones.map((b) => {
           if (b.id !== bone.id) return b;
           const base = { ...b.base }, tracks = { ...b.tracks };

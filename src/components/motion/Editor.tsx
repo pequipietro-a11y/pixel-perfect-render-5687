@@ -673,6 +673,7 @@ export function Editor() {
             <CanvasStage
               layers={layers}
               time={time}
+              fps={fps}
               zoom={zoom}
               width={1280}
               height={720}
