@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Girar e redimensionar imagens com alças no mouse
+- [ ] Deformar imagens com ossos de marionete no palco e no MP4
+- [ ] Testar os controles e a deformação com keyframes
+
 - [x] Adicionar texto em perspectiva e aba dedicada de animação 2D/3D
 - [x] Criar rigs hierárquicos, vincular camadas e animar ossos com keyframes
 - [ ] Aplicar poses de ossos de modelos GLB e verificar palco/exportação
