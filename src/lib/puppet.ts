@@ -3,6 +3,7 @@ import { boneMatrix, createBone, type Rig } from "./rig";
 
 /** Linear blend skinning over a regular image lattice, using Three.js bind-space matrices. */
 export function puppetDeformer(rig: Rig, time: number) {
+  if (rig.editRest) return (x: number, y: number) => new Vector3(x, y, 0);
   const bones = rig.bones.map((bone) => {
     const bind = boneMatrix(rig, bone.id, null);
     const anchor = new Vector3().setFromMatrixPosition(bind);
