@@ -12,7 +12,7 @@ export interface RigBone {
   base: Record<BoneKey, number>;
   tracks: Record<BoneKey, Keyframe[]>;
 }
-export interface Rig { mode: "2d" | "3d"; bones: RigBone[]; deform?: boolean }
+export interface Rig { mode: "2d" | "3d"; bones: RigBone[]; deform?: boolean; editRest?: boolean }
 export function createBone(parentId: string | null, index: number): RigBone {
   return { id: uid("bone"), name: `Osso ${index + 1}`, parentId, length: 80,
     base: { x: 0, y: parentId ? 80 : 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 },

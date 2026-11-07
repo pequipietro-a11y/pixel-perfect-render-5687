@@ -679,6 +679,8 @@ export function Editor() {
               selectedId={selectedId}
               onSelect={setSelectedId}
               onMove={moveLayer}
+              onSetValue={setValue}
+              onUpdateLayer={updateLayer}
               background={background}
               onEditText={editText}
               playing={playing}
