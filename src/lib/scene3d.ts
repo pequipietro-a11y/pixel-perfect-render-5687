@@ -68,6 +68,12 @@ async function buildObject(layer: Layer): Promise<any> {
   return gltf.scene;
 }
 
+export async function buildPosedModel(layer: Layer, time: number): Promise<import("three").Object3D> {
+  const object = await buildObject(layer);
+  createModelPoseWriter(object)(layer.rig, time);
+  return object;
+}
+
 export interface ModelRenderer {
   canvas: HTMLCanvasElement;
   render: (rotX: number, rotY: number, rotZ: number, time?: number, rig?: Rig) => void;

@@ -15,7 +15,7 @@ export function extractModelRig(object: Object3D): Rig | undefined {
   return {
     mode: "3d",
     bones: bones.map((bone, i) => {
-      const sourceName = ids.get(bone);
+      const sourceName = `native-bone:${i}`;
       const parentId = bone.parent instanceof Bone ? ids.get(bone.parent) ?? null : null;
       const entry = createBone(parentId, i);
       const rotation = new Euler().setFromQuaternion(bone.quaternion, "XYZ");
