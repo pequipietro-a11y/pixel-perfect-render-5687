@@ -272,7 +272,7 @@ export function Editor() {
   /** Imports a 3D model (.glb/.gltf/.obj) as a model3d layer. */
   const import3D = (file: File) => {
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const src = String(reader.result);
       const layer = createLayer("model3d", layers.length);
       const lower = file.name.toLowerCase();
@@ -283,6 +283,13 @@ export function Editor() {
           ? "gltf"
           : "glb";
       layer.name = file.name;
+      try {
+        const { loadModelRig } = await import("@/lib/scene3d");
+        layer.rig = await loadModelRig(layer);
+      } catch {
+        alert("Não foi possível abrir este modelo 3D. Use um GLB com os arquivos incorporados ou um OBJ.");
+        return;
+      }
       setLayers((ls) => [layer, ...ls]);
       setSelectedId(layer.id);
     };

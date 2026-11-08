@@ -7,10 +7,11 @@ interface Props {
   rotX: number;
   rotY: number;
   rotZ: number;
+  time?: number;
 }
 
 /** Renders an imported 3D model or extruded 3D text into a WebGL canvas. */
-export function Model3DView({ layer, rotX, rotY, rotZ }: Props) {
+export function Model3DView({ layer, rotX, rotY, rotZ, time = 0 }: Props) {
   const holderRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<ModelRenderer | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -44,8 +45,8 @@ export function Model3DView({ layer, rotX, rotY, rotZ }: Props) {
   }, [key, width, height]);
 
   useEffect(() => {
-    rendererRef.current?.render(rotX, rotY, rotZ);
-  }, [rotX, rotY, rotZ, status]);
+    rendererRef.current?.render(rotX, rotY, rotZ, time, layer.rig);
+  }, [rotX, rotY, rotZ, time, layer.rig, status]);
 
   return (
     <div className="relative" style={{ width, height }}>
