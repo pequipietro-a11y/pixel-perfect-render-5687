@@ -1,4 +1,4 @@
-import { sampleLayer, type Layer } from "@/lib/motion";
+import { type Layer } from "@/lib/motion";
 import { sampleRigLayer } from "./rig";
 
 /** Builds a 3D scene from the layers at a given time and downloads it as .glb */
