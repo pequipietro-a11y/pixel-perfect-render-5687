@@ -1,5 +1,7 @@
 // Shared 3D scene builder (imported models and extruded 3D text). Browser only.
 import type { Layer } from "@/lib/motion";
+import { createModelPoseWriter, extractModelRig } from "./modelRig";
+import type { Rig } from "./rig";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -66,10 +68,27 @@ async function buildObject(layer: Layer): Promise<any> {
   return gltf.scene;
 }
 
+export async function buildPosedModel(layer: Layer, time: number): Promise<import("three").Object3D> {
+  const object = await buildObject(layer);
+  createModelPoseWriter(object)(layer.rig, time);
+  return object;
+}
+
 export interface ModelRenderer {
   canvas: HTMLCanvasElement;
-  render: (rotX: number, rotY: number, rotZ: number) => void;
+  render: (rotX: number, rotY: number, rotZ: number, time?: number, rig?: Rig) => void;
   dispose: () => void;
+}
+
+export async function loadModelRig(layer: Layer) {
+  const object = await buildObject(layer);
+  const rig = extractModelRig(object);
+  object.traverse((node: any) => {
+    node.geometry?.dispose();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material: any) => material?.dispose());
+  });
+  return rig;
 }
 
 /** Builds a lit scene around the layer's object, fitted to the camera. */
@@ -83,6 +102,7 @@ export async function createModelRenderer(
   canvas.width = w;
   canvas.height = h;
   const object = await buildObject(layer);
+  const writePose = createModelPoseWriter(object);
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
@@ -117,7 +137,8 @@ export async function createModelRenderer(
   const d = Math.PI / 180;
   return {
     canvas,
-    render: (rx, ry, rz) => {
+    render: (rx, ry, rz, time = 0, rig = layer.rig) => {
+      writePose(rig, time);
       pivot.rotation.set(rx * d, ry * d, rz * d);
       renderer.render(scene, camera);
     },

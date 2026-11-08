@@ -256,7 +256,7 @@ function drawFrame(
 
     ctx.save();
     ctx.translate(W / 2 + v.x, H / 2 + v.y);
-    ctx.rotate(((v.rotation + v.rotZ) * Math.PI) / 180);
+    if (!is3d) ctx.rotate(((v.rotation + v.rotZ) * Math.PI) / 180);
     ctx.scale(v.scaleX / 100, v.scaleY / 100);
     ctx.globalAlpha = alpha;
     ctx.globalCompositeOperation = blend;
@@ -268,7 +268,7 @@ function drawFrame(
       if (model) {
         const view = layer.followCamera && layer.cameraAngle && cameraMotion
           ? cameraViewAt(cameraMotion, time) : { x: 0, y: 0 };
-        model.render(v.rotX + view.x, v.rotY + view.y, v.rotation + v.rotZ);
+        model.render(v.rotX + view.x, v.rotY + view.y, v.rotation + v.rotZ, time, layer.rig);
         ctx.drawImage(model.canvas, -w / 2, -h / 2, w, h);
       }
     } else if (layer.kind === "text") {

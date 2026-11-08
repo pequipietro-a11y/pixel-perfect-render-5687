@@ -25,6 +25,7 @@ function depth(rig: Rig, b: RigBone): number {
 
 export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
   const [boneId, setBoneId] = useState<string | null>(null);
+  const [loadingBones, setLoadingBones] = useState(false);
   if (!layer) {
     return <p className="p-6 text-center text-xs text-muted-foreground">Selecione uma camada para animar com ossos.</p>;
   }
@@ -62,6 +63,18 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
     <div className="flex flex-col gap-4 p-3 text-xs">
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Esqueleto (rig)</h2>
+        {layer.kind === "model3d" && !rig?.bones.some((b) => b.sourceName) && (
+          <Button size="sm" variant="outline" className="mt-2 w-full" disabled={loadingBones} onClick={async () => {
+            setLoadingBones(true);
+            try {
+              const { loadModelRig } = await import("@/lib/scene3d");
+              const nativeRig = await loadModelRig(layer);
+              if (nativeRig) { setBoneId(null); setRig(nativeRig); }
+              else alert("Este modelo não possui esqueleto. Importe um GLB com ossos e pesos de deformação.");
+            } catch { alert("Não foi possível carregar os ossos deste modelo."); }
+            finally { setLoadingBones(false); }
+          }}>{loadingBones ? "Carregando ossos…" : "Carregar ossos do modelo"}</Button>
+        )}
         {layer.kind === "image" && (
           <div className="mt-2 space-y-2">
             {!rig && <Button size="sm" variant="outline" className="w-full" onClick={() => setRig(createPuppetRig(layer.height))}>Criar marionete</Button>}
@@ -89,8 +102,8 @@ export function RigPanel({ layers, layer, time, fps, onUpdateLayer }: Props) {
               ))}
             </div>
             <div className="mt-2 grid grid-cols-2 gap-1.5">
-              <button className="tool-btn" onClick={() => { const b = createBone(bone?.id ?? null, rig.bones.length); setBoneId(b.id); setRig({ ...rig, bones: [...rig.bones, b] }); }}>+ Osso filho</button>
-              <button className="tool-btn" disabled={!bone} onClick={() => {
+              <button className="tool-btn" disabled={rig.bones.some((b) => b.sourceName)} onClick={() => { const b = createBone(bone?.id ?? null, rig.bones.length); setBoneId(b.id); setRig({ ...rig, bones: [...rig.bones, b] }); }}>+ Osso filho</button>
+              <button className="tool-btn" disabled={!bone || rig.bones.some((b) => b.sourceName)} onClick={() => {
                 if (!bone) return;
                 const kill = new Set([bone.id]);
                 let grew = true;

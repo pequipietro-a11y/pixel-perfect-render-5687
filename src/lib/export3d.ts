@@ -1,4 +1,5 @@
-import { sampleLayer, type Layer } from "@/lib/motion";
+import { type Layer } from "@/lib/motion";
+import { sampleRigLayer } from "./rig";
 
 /** Builds a 3D scene from the layers at a given time and downloads it as .glb */
 export async function export3D(layers: Layer[], time: number, depth = 40) {
@@ -74,11 +75,29 @@ export async function export3D(layers: Layer[], time: number, depth = 40) {
   for (let i = 0; i < ordered.length; i++) {
     const layer = ordered[i];
     if (!layer || !layer.visible) continue;
-    const v = sampleLayer(layer, time);
+    const v = sampleRigLayer(layer, layers, time);
     const w = layer.width;
     const h = layer.height;
     let mesh: InstanceType<typeof THREE.Mesh>;
     const opacity = v.opacity / 100;
+
+    if (layer.kind === "model3d" && layer.src) {
+      const { buildPosedModel } = await import("./scene3d");
+      const model = await buildPosedModel(layer, time);
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      const holder = new THREE.Group();
+      holder.name = layer.name;
+      holder.add(model);
+      const fit = Math.min(w / (size.x || 1), h / (size.y || 1));
+      holder.scale.set(fit * v.scaleX / 100 * S, fit * v.scaleY / 100 * S, fit * S);
+      holder.position.set(v.x * S, -v.y * S, i * 0.05);
+      holder.rotation.set(v.rotX * Math.PI / 180, v.rotY * Math.PI / 180, -(v.rotation + v.rotZ) * Math.PI / 180);
+      scene.add(holder);
+      continue;
+    }
 
     if (layer.kind === "rect" || layer.kind === "ellipse") {
       const shape = new THREE.Shape();

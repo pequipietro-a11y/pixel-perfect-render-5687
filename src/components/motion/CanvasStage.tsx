@@ -244,6 +244,7 @@ export function CanvasStage({
                 {layer.kind === "text" && layer.text3d ? (
                   <Model3DView
                     layer={layer}
+                    time={time}
                     rotX={v.rotX + view.x}
                     rotY={v.rotY + view.y}
                     rotZ={v.rotation + v.rotZ}
@@ -269,6 +270,7 @@ export function CanvasStage({
                 ) : layer.kind === "model3d" && layer.src ? (
                   <Model3DView
                     layer={layer}
+                    time={time}
                     rotX={v.rotX + view.x}
                     rotY={v.rotY + view.y}
                     rotZ={v.rotation + v.rotZ}
@@ -303,7 +305,7 @@ export function CanvasStage({
           })}
           {(() => {
             const owner = layers.find((l) => l.id === selectedId && l.rig);
-            if (!owner?.rig || owner.rig.deform) return null;
+            if (!owner?.rig || owner.rig.deform || owner.rig.bones.some((b) => b.sourceName)) return null;
             const rig = owner.rig;
             const a = sampleLayer(owner, time);
             const pt = (id: string) => new Vector3().applyMatrix4(boneMatrix(rig, id, time));

@@ -13,3 +13,4 @@
 - Keep background-video tracking and approximate viewpoint calculations in a shared browser-side helper so stage preview and recorded frames use identical offsets and visibility rules.
 - Keep puppet deformation in shared Three.js bind-space skinning helpers and use the same textured mesh projection in the stage and video export to prevent divergent poses.
 - Route mouse image transforms through the editor's property writer so existing animated tracks retain their keyframe behavior.
+- Import native model skeletons with stable traversal identifiers and apply local bone poses through one shared writer for stage and video frames, preserving skin weights and inverse bind matrices.

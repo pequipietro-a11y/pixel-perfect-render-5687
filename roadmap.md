@@ -6,7 +6,8 @@
 
 - [x] Adicionar texto em perspectiva e aba dedicada de animação 2D/3D
 - [x] Criar rigs hierárquicos, vincular camadas e animar ossos com keyframes
-- [ ] Aplicar poses de ossos de modelos GLB e verificar palco/exportação (aguarda modelo de personagem com esqueleto)
+- [x] Importar esqueleto de modelos GLB, aplicar poses no palco/MP4 e testar com modelo de exemplo
+- [x] Preservar modelo e esqueleto na exportação GLB da pose atual
 
 - [x] Substituir recorte retangular por laço de seleção livre
 - [x] Adicionar chroma key com conta-gotas e tolerância
