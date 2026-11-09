@@ -21,3 +21,6 @@
 - [ ] Validar recorte livre/chroma key e transparência com imagens do usuário (aguarda imagens de exemplo)
 - [ ] Validar mudança real de câmera, perspectiva e saída de quadro com filmagem do usuário (aguarda vídeo de exemplo)
 - [x] Juntar várias camadas selecionadas em uma só
+- [x] Juntar camadas também com Ctrl/Shift + clique no palco
+- [x] Zoom da linha do tempo (+/−, barra, Ctrl+roda) e atalhos J/K entre keyframes
+- [ ] Itens do documento de recursos (trim/split, máscaras, caneta, GIF/PNG, Lottie etc.) — aguarda prioridade do usuário
