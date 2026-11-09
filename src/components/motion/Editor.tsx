@@ -72,6 +72,10 @@ export function Editor() {
     };
   }, [playing, duration, loop]);
 
+  const layersRef = useRef(layers);
+  layersRef.current = layers;
+  const selRef = useRef(selectedId);
+  selRef.current = selectedId;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -82,6 +86,16 @@ export function Editor() {
       }
       if (e.code === "ArrowRight")
         setTime((t) => Math.min(duration, snapToFrame(t + 1 / fps, fps)));
+      if (e.code === "KeyK" || e.code === "KeyJ") {
+        const sel = layersRef.current.find((l) => l.id === selRef.current);
+        const times = sel ? Object.values(sel.tracks).flatMap((k) => (k ?? []).map((x) => x.time)) : [];
+        setTime((t) => {
+          const next = e.code === "KeyK"
+            ? Math.min(...times.filter((x) => x > t + 1e-4), Infinity)
+            : Math.max(...times.filter((x) => x < t - 1e-4), -Infinity);
+          return Number.isFinite(next) ? next : t;
+        });
+      }
       if (e.code === "ArrowLeft")
         setTime((t) => Math.max(0, snapToFrame(t - 1 / fps, fps)));
     };
@@ -234,11 +248,24 @@ export function Editor() {
 
   /** Adds an image layer from a cropped piece (used by the crop tool). */
   /** Flattens the multi-selected layers into one image layer at the current time. */
+  const selectLayer = (id: string, additive?: boolean) => {
+    if (additive) {
+      setMultiIds((m) => {
+        const base = m.length ? m : selectedId && selectedId !== id ? [selectedId] : [];
+        return base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+      });
+    } else setMultiIds([]);
+    setSelectedId(id);
+  };
+
   const mergeLayers = async () => {
     if (multiIds.length < 2) return;
     const { flattenLayers } = await import("@/lib/render");
-    const res = await flattenLayers(layers, multiIds, time).catch(() => null);
-    if (!res) return alert("Não foi possível juntar essas camadas.");
+    const res = await flattenLayers(layers, multiIds, time).catch((err) => {
+      console.error("merge failed", err);
+      return null;
+    });
+    if (!res) return alert("Não foi possível juntar: as camadas selecionadas estão invisíveis ou fora do palco.");
     const layer = createLayer("image", layers.length);
     layer.src = res.src;
     layer.name = "Grupo junto";
@@ -636,15 +663,7 @@ export function Editor() {
           <LayersPanel
             layers={layers}
             selectedId={selectedId}
-            onSelect={(id, additive) => {
-              if (additive) {
-                setMultiIds((m) => {
-                  const base = m.length ? m : selectedId && selectedId !== id ? [selectedId] : [];
-                  return base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
-                });
-              } else setMultiIds([]);
-              setSelectedId(id);
-            }}
+            onSelect={selectLayer}
             multiIds={multiIds}
             onMerge={mergeLayers}
             onAdd={addLayer}
@@ -685,7 +704,7 @@ export function Editor() {
               width={1280}
               height={720}
               selectedId={selectedId}
-              onSelect={setSelectedId}
+              onSelect={(id, additive) => (id ? selectLayer(id, !!additive) : (setSelectedId(null), setMultiIds([])))}
               onMove={moveLayer}
               onSetValue={setValue}
               onUpdateLayer={updateLayer}

@@ -27,7 +27,7 @@ interface Props {
   height: number;
   selectedId: string | null;
   background: Background;
-  onSelect: (id: string | null) => void;
+  onSelect: (id: string | null, additive?: boolean) => void;
   onMove: (id: string, dx: number, dy: number) => void;
   onSetValue: (id: string, key: PropKey, value: number) => void;
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
@@ -73,7 +73,7 @@ export function CanvasStage({
 
   const handlePointerDown = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
-    onSelect(id);
+    onSelect(id, e.ctrlKey || e.shiftKey || e.metaKey);
     dragRef.current = { id, x: e.clientX, y: e.clientY };
     setDragging(true);
     (e.target as Element).setPointerCapture(e.pointerId);

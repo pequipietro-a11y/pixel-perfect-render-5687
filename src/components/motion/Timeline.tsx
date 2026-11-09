@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   PROP_KEYS,
   PROP_LABELS,
@@ -60,6 +60,8 @@ export function Timeline(props: Props) {
 
   const trackRef = useRef<HTMLDivElement>(null);
   const scrubbing = useRef(false);
+  const [zoom, setZoom] = useState(1);
+  const clampZoom = (z: number) => Math.min(20, Math.max(1, Math.round(z * 100) / 100));
 
   const posFromEvent = (clientX: number) => {
     const el = trackRef.current;
@@ -69,7 +71,7 @@ export function Timeline(props: Props) {
     return snapToFrame(ratio * duration, fps);
   };
 
-  const ticks = Math.max(1, Math.round(duration));
+  
 
   return (
     <div className="flex h-full flex-col bg-panel">
@@ -104,6 +106,12 @@ export function Timeline(props: Props) {
         >
           − Keyframe
         </button>
+        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <button className="tool-btn px-2" onClick={() => setZoom((z) => clampZoom(z / 1.5))} title="Diminuir linha do tempo" aria-label="Diminuir linha do tempo">−</button>
+          <input type="range" min={1} max={20} step={0.1} value={zoom} onChange={(e) => setZoom(clampZoom(Number(e.target.value)))} className="w-20" aria-label="Zoom da linha do tempo" />
+          <button className="tool-btn px-2" onClick={() => setZoom((z) => clampZoom(z * 1.5))} title="Aumentar linha do tempo" aria-label="Aumentar linha do tempo">+</button>
+          <span className="w-9 font-mono">{Math.round(zoom * 100)}%</span>
+        </div>
         <span className="ml-1 font-mono text-sm text-primary">
           {formatTime(time, fps)}
         </span>
@@ -173,10 +181,18 @@ export function Timeline(props: Props) {
         </div>
 
         {/* tracks */}
-        <div className="relative min-w-0 flex-1 overflow-hidden">
+        <div
+          className="relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+          onWheel={(e) => {
+            if (!e.ctrlKey && !e.altKey) return;
+            e.preventDefault();
+            setZoom((z) => clampZoom(e.deltaY < 0 ? z * 1.2 : z / 1.2));
+          }}
+        >
           <div
             ref={trackRef}
             className="relative h-full"
+            style={{ width: `${zoom * 100}%` }}
             onPointerDown={(e) => {
               if ((e.target as HTMLElement).dataset["kf"]) return;
               scrubbing.current = true;
@@ -190,15 +206,22 @@ export function Timeline(props: Props) {
           >
             {/* ruler */}
             <div className="relative h-7 border-b border-border">
-              {Array.from({ length: ticks + 1 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute top-0 h-full border-l border-border pl-1 text-[10px] text-muted-foreground"
-                  style={{ left: `${(i / duration) * 100}%` }}
-                >
-                  {i}s
-                </div>
-              ))}
+              {(() => {
+                const step = zoom >= 8 ? 0.1 : zoom >= 3 ? 0.25 : zoom >= 1.5 ? 0.5 : 1;
+                const n = Math.floor(duration / step + 1e-6);
+                return Array.from({ length: n + 1 }).map((_, i) => {
+                  const t = i * step;
+                  return (
+                    <div
+                      key={i}
+                      className="absolute top-0 h-full border-l border-border pl-1 text-[10px] text-muted-foreground"
+                      style={{ left: `${(t / duration) * 100}%` }}
+                    >
+                      {Number(t.toFixed(2))}s
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             <div className="overflow-y-auto">
