@@ -248,7 +248,7 @@ export function Editor() {
 
   /** Adds an image layer from a cropped piece (used by the crop tool). */
   /** Flattens the multi-selected layers into one image layer at the current time. */
-  const selectLayer = (id: string, additive: boolean) => {
+  const selectLayer = (id: string, additive?: boolean) => {
     if (additive) {
       setMultiIds((m) => {
         const base = m.length ? m : selectedId && selectedId !== id ? [selectedId] : [];
