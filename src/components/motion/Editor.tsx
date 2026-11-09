@@ -72,6 +72,80 @@ export function Editor() {
     };
   }, [playing, duration, loop]);
 
+  // Undo/redo history: snapshots taken after edits settle (350ms).
+  const pastRef = useRef<Layer[][]>([]);
+  const futureRef = useRef<Layer[][]>([]);
+  const lastSnapRef = useRef<Layer[] | null>(null);
+  const skipSnapRef = useRef(false);
+  const [, forceHist] = useState(0);
+  useEffect(() => {
+    if (skipSnapRef.current) {
+      skipSnapRef.current = false;
+      lastSnapRef.current = layers;
+      return;
+    }
+    if (lastSnapRef.current === null) {
+      lastSnapRef.current = layers;
+      return;
+    }
+    const id = window.setTimeout(() => {
+      if (lastSnapRef.current && lastSnapRef.current !== layers) {
+        pastRef.current = [...pastRef.current.slice(-199), lastSnapRef.current];
+        futureRef.current = [];
+        lastSnapRef.current = layers;
+        forceHist((n) => n + 1);
+      }
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, [layers]);
+  const undo = useCallback(() => {
+    const prev = pastRef.current.pop();
+    if (!prev) return;
+    futureRef.current.push(layersRef.current);
+    skipSnapRef.current = true;
+    setLayers(prev);
+    forceHist((n) => n + 1);
+  }, []);
+  const redo = useCallback(() => {
+    const next = futureRef.current.pop();
+    if (!next) return;
+    pastRef.current.push(layersRef.current);
+    skipSnapRef.current = true;
+    setLayers(next);
+    forceHist((n) => n + 1);
+  }, []);
+
+  // Auto-save to the browser (restored on next open).
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const raw = localStorage.getItem("fluxo-autosave");
+      if (raw) {
+        const saved = JSON.parse(raw) as { layers?: Layer[]; duration?: number; fps?: number };
+        if (Array.isArray(saved.layers) && saved.layers.length) {
+          skipSnapRef.current = true;
+          setLayers(saved.layers.filter((l) => !(l.src ?? "").startsWith("blob:")));
+          if (saved.duration) setDuration(saved.duration);
+          if (saved.fps) setFps(saved.fps);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      try {
+        localStorage.setItem("fluxo-autosave", JSON.stringify({ layers, duration, fps }));
+      } catch {
+        /* storage full: skip */
+      }
+    }, 1000);
+    return () => window.clearTimeout(id);
+  }, [layers, duration, fps]);
+
   const layersRef = useRef(layers);
   layersRef.current = layers;
   const selRef = useRef(selectedId);
@@ -80,6 +154,17 @@ export function Editor() {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target && /input|select|textarea/i.test(target.tagName)) return;
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyY") {
+        e.preventDefault();
+        redo();
+        return;
+      }
       if (e.code === "Space") {
         e.preventDefault();
         setPlaying((p) => !p);
@@ -101,7 +186,7 @@ export function Editor() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [duration, fps]);
+  }, [duration, fps, undo, redo]);
 
   const selected = layers.find((l) => l.id === selectedId) ?? null;
 
@@ -539,6 +624,22 @@ export function Editor() {
           Espaço: play · ← →: quadro a quadro
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            onClick={undo}
+            disabled={!pastRef.current.length}
+            title="Desfazer (Ctrl+Z)"
+            className="rounded border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-40"
+          >
+            ↶ Desfazer
+          </button>
+          <button
+            onClick={redo}
+            disabled={!futureRef.current.length}
+            title="Refazer (Ctrl+Y)"
+            className="rounded border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-40"
+          >
+            ↷ Refazer
+          </button>
           <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
             Zoom
             <input
