@@ -24,3 +24,4 @@
 - [x] Juntar camadas também com Ctrl/Shift + clique no palco
 - [x] Zoom da linha do tempo (+/−, barra, Ctrl+roda) e atalhos J/K entre keyframes
 - [ ] Itens do documento de recursos (trim/split, máscaras, caneta, GIF/PNG, Lottie etc.) — aguarda prioridade do usuário
+- [x] Desfazer/Refazer (Ctrl+Z / Ctrl+Y) e salvamento automático no navegador
