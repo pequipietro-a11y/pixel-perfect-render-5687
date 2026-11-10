@@ -617,7 +617,8 @@ export function Editor() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-panel px-4 py-2">
-        <h1 className="font-display text-sm font-bold tracking-tight">
+        <h1 className="flex items-center gap-2 font-display text-sm font-bold tracking-tight">
+          <img src="/logo.png" alt="Fluxo Motion" className="h-7 w-7 rounded-full object-cover" />
           Fluxo <span className="text-primary">Motion</span>
         </h1>
         <span className="text-[11px] text-muted-foreground">
