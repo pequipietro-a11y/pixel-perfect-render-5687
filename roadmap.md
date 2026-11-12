@@ -23,5 +23,6 @@
 - [x] Juntar várias camadas selecionadas em uma só
 - [x] Juntar camadas também com Ctrl/Shift + clique no palco
 - [x] Zoom da linha do tempo (+/−, barra, Ctrl+roda) e atalhos J/K entre keyframes
+- [x] Máscara de forma (elipse/retângulo, suavizar, inverter) no palco e MP4
 - [ ] Itens do documento de recursos (trim/split, máscaras, caneta, GIF/PNG, Lottie etc.) — aguarda prioridade do usuário
 - [x] Desfazer/Refazer (Ctrl+Z / Ctrl+Y) e salvamento automático no navegador
