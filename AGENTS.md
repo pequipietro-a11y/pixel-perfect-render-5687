@@ -14,3 +14,4 @@
 - Keep puppet deformation in shared Three.js bind-space skinning helpers and use the same textured mesh projection in the stage and video export to prevent divergent poses.
 - Route mouse image transforms through the editor's property writer so existing animated tracks retain their keyframe behavior.
 - Import native model skeletons with stable traversal identifiers and apply local bone poses through one shared writer for stage and video frames, preserving skin weights and inverse bind matrices.
+- Build layer shape masks with the shared canvas helper in src/lib/layerMask.ts so the stage CSS mask and the video export use the same alpha.

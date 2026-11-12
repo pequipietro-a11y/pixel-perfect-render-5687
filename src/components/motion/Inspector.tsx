@@ -10,6 +10,7 @@ import {
   type PropKey,
 } from "@/lib/motion";
 import { GraphEditor } from "./GraphEditor";
+import { DEFAULT_MASK } from "@/lib/layerMask";
 import { ImageCropTool } from "./ImageCropTool";
 
 interface Props {
@@ -263,6 +264,33 @@ export function Inspector({
             ))}
           </select>
         </label>
+      </div>
+
+      <div className="space-y-2 border-t border-border pt-3">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Máscara</h3>
+        <select value={layer.mask?.shape ?? "none"} className="num-field"
+          onChange={(e) => onUpdateLayer(layer.id, { mask: e.target.value === "none" ? undefined : { ...(layer.mask ?? DEFAULT_MASK), shape: e.target.value as "rect" | "ellipse" } })}>
+          <option value="none">Sem máscara</option>
+          <option value="ellipse">Elipse</option>
+          <option value="rect">Retângulo</option>
+        </select>
+        {layer.mask && (
+          <>
+            <label className="block text-xs text-muted-foreground">Tamanho ({layer.mask.size}%)
+              <input type="range" min={5} max={100} value={layer.mask.size} className="mt-1 w-full accent-[var(--color-primary)]"
+                onChange={(e) => onUpdateLayer(layer.id, { mask: { ...layer.mask!, size: Number(e.target.value) } })} />
+            </label>
+            <label className="block text-xs text-muted-foreground">Suavizar borda ({layer.mask.feather}px)
+              <input type="range" min={0} max={80} value={layer.mask.feather} className="mt-1 w-full accent-[var(--color-primary)]"
+                onChange={(e) => onUpdateLayer(layer.id, { mask: { ...layer.mask!, feather: Number(e.target.value) } })} />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input type="checkbox" checked={layer.mask.invert} className="accent-[var(--color-primary)]"
+                onChange={(e) => onUpdateLayer(layer.id, { mask: { ...layer.mask!, invert: e.target.checked } })} />
+              Inverter (mostrar só fora)
+            </label>
+          </>
+        )}
       </div>
 
       {(layer.kind === "model3d" || (layer.kind === "text" && layer.text3d)) && (
