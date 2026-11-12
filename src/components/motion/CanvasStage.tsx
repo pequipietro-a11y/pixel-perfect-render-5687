@@ -1,4 +1,5 @@
 import { maskDataUrl } from "@/lib/layerMask";
+import { stageMatteUrl } from "@/lib/render";
 import { Fragment, useRef, useState } from "react";
 import { snapToFrame, uid, type PropKey, type Layer } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
@@ -167,6 +168,11 @@ export function CanvasStage({
           {[...layers].reverse().map((layer) => {
             if (!layer.visible) return null;
             const v = sampleRigLayer(layer, layers, time);
+            const layerIndex = layers.indexOf(layer);
+            const isMatteSource = !!layers[layerIndex + 1]?.matte;
+            if (isMatteSource) v.opacity = layer.id === selectedId ? 25 : 0;
+            const matteAbove = layer.matte ? layers[layerIndex - 1] : undefined;
+            const matteUrl = matteAbove ? stageMatteUrl(layers, matteAbove.id, time, width, height) : "";
             // Camera-follow: shift the layer opposite to the tracked camera motion.
             if (layer.followCamera && cameraMotion) {
               const off = cameraOffsetAt(cameraMotion, time);
@@ -219,6 +225,8 @@ export function CanvasStage({
                   }}
                 />
               )}
+              <div className="absolute" style={matteUrl ? { left: -width / 2, top: -height / 2, width, height, maskImage: `url(${matteUrl})`, WebkitMaskImage: `url(${matteUrl})`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%", ...(layer.matte === "invert" ? { maskMode: "alpha", WebkitMaskComposite: "xor", maskComposite: "exclude", maskImage: `linear-gradient(#000,#000), url(${matteUrl})`, WebkitMaskImage: `linear-gradient(#000,#000), url(${matteUrl})` } : {}) } : { left: 0, top: 0 }}>
+              <div className="absolute" style={matteUrl ? { left: width / 2, top: height / 2 } : { left: 0, top: 0 }}>
               <div
                 data-layer={layer.id}
                 onPointerDown={(e) => handlePointerDown(e, layer.id)}
@@ -302,6 +310,8 @@ export function CanvasStage({
                    const p = new Vector3().applyMatrix4(boneMatrix(rig, bone.id, rig.editRest ? null : time));
                    return <Button key={bone.id} aria-label={`Mover ${bone.name}`} title={`Mover ${bone.name}`} size="icon" className="absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background p-0" style={{ left: layer.width / 2 + p.x, top: layer.height / 2 + p.y }} onPointerDown={(e) => startTool(e, layer, "bone", bone.id)} />;
                  })}
+              </div>
+              </div>
               </div>
               </Fragment>
             );

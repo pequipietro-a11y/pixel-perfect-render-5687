@@ -135,6 +135,8 @@ export interface Layer {
   depth?: number | undefined;
   rig?: import("./rig").Rig | undefined;
   rigBinding?: { layerId: string; boneId: string } | undefined;
+  /** Clip this layer by the layer directly above it in the list. */
+  matte?: ("alpha" | "invert") | undefined;
   mask?: import("./layerMask").LayerMask | undefined;
   width: number;
   height: number;
