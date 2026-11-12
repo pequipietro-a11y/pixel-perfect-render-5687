@@ -135,6 +135,7 @@ export interface Layer {
   depth?: number | undefined;
   rig?: import("./rig").Rig | undefined;
   rigBinding?: { layerId: string; boneId: string } | undefined;
+  mask?: import("./layerMask").LayerMask | undefined;
   width: number;
   height: number;
   radius: number;

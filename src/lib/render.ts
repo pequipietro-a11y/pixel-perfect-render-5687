@@ -1,3 +1,4 @@
+import { applyMask } from "./layerMask";
 import { type Layer } from "@/lib/motion";
 import { sampleRigLayer } from "@/lib/rig";
 import { puppetDeformer } from "@/lib/puppet";
@@ -237,11 +238,18 @@ function drawFrame(
         const sh = textCanvas ? textCanvas.height : layer.kind === "image" ? (src as HTMLImageElement).height : (src as HTMLVideoElement).videoHeight;
         if (sw && sh) {
           const r = containRect(sw, sh, layer.width, layer.height);
+          let warpSrc: CanvasImageSource = src;
+          if (layer.mask) {
+            const mc = document.createElement("canvas");
+            mc.width = sw; mc.height = sh;
+            mc.getContext("2d")?.drawImage(src, 0, 0, sw, sh);
+            warpSrc = applyMask(mc, layer.mask);
+          }
           const tmp = warpCanvas(W, H);
           const tctx = tmp.getContext("2d");
           if (tctx) {
             tctx.clearRect(0, 0, W, H);
-            drawPerspective(tctx, src, sw, sh, r.w, r.h, v, W, H, deform);
+            drawPerspective(tctx, warpSrc, sw, sh, r.w, r.h, v, W, H, deform);
             ctx.save();
             ctx.globalAlpha = alpha;
             ctx.globalCompositeOperation = blend;
@@ -263,6 +271,15 @@ function drawFrame(
     ctx.filter = filter;
     const w = layer.width;
     const h = layer.height;
+    const outer = ctx;
+    let local: HTMLCanvasElement | undefined;
+    if (layer.mask) {
+      local = document.createElement("canvas");
+      local.width = Math.max(1, Math.round(w));
+      local.height = Math.max(1, Math.round(h));
+      const lc = local.getContext("2d");
+      if (lc) { lc.translate(w / 2, h / 2); ctx = lc; } else local = undefined;
+    }
     if (is3d) {
       const model = models.get(layer.id);
       if (model) {
@@ -295,6 +312,10 @@ function drawFrame(
       if (layer.kind === "ellipse") ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
       else ctx.roundRect(-w / 2, -h / 2, w, h, Math.min(layer.radius, w / 2, h / 2));
       ctx.fill();
+    }
+    if (local && layer.mask) {
+      ctx = outer;
+      ctx.drawImage(applyMask(local, layer.mask), -w / 2, -h / 2);
     }
     ctx.restore();
   }

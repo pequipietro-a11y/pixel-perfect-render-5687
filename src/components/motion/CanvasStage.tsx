@@ -1,3 +1,4 @@
+import { maskDataUrl } from "@/lib/layerMask";
 import { Fragment, useRef, useState } from "react";
 import { snapToFrame, uid, type PropKey, type Layer } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
@@ -241,6 +242,7 @@ export function CanvasStage({
                   transformStyle: "preserve-3d",
                 }}
               >
+                <div className="h-full w-full" style={layer.mask ? (() => { const m = `url(${maskDataUrl(layer.mask, layer.width, layer.height)})`; return { maskImage: m, WebkitMaskImage: m, maskSize: "100% 100%", WebkitMaskSize: "100% 100%" }; })() : undefined}>
                 {layer.kind === "text" && layer.text3d ? (
                   <Model3DView
                     layer={layer}
@@ -285,6 +287,7 @@ export function CanvasStage({
                     }}
                   />
                 )}
+                </div>
                  {selected && layer.kind === "image" && !playing && (
                    <div className="pointer-events-none absolute inset-0 border border-accent">
                      {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((corner) => (
