@@ -268,6 +268,14 @@ export function Inspector({
 
       <div className="space-y-2 border-t border-border pt-3">
         <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Máscara</h3>
+        <label className="block text-xs text-muted-foreground">Recortar pela camada de cima
+          <select value={layer.matte ?? "none"} className="num-field mt-1"
+            onChange={(e) => onUpdateLayer(layer.id, { matte: e.target.value === "none" ? undefined : e.target.value as "alpha" | "invert" })}>
+            <option value="none">Não</option>
+            <option value="alpha">Mostrar só dentro dela</option>
+            <option value="invert">Mostrar só fora dela</option>
+          </select>
+        </label>
         <select value={layer.mask?.shape ?? "none"} className="num-field"
           onChange={(e) => onUpdateLayer(layer.id, { mask: e.target.value === "none" ? undefined : { ...(layer.mask ?? DEFAULT_MASK), shape: e.target.value as "rect" | "ellipse" } })}>
           <option value="none">Sem máscara</option>

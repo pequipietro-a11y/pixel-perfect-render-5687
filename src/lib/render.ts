@@ -191,8 +191,27 @@ function drawFrame(
   }
   ctx.restore();
 
+  const matteSources = new Set<string>();
+  layers.forEach((l, i) => { const above = layers[i - 1]; if (l.matte && above) matteSources.add(above.id); });
   for (const layer of [...layers].reverse()) {
     if (!layer.visible) continue;
+    if (matteSources.has(layer.id)) continue;
+    const matteLayer = layer.matte ? layers[layers.indexOf(layer) - 1] : undefined;
+    if (layer.matte && matteLayer) {
+      const content = document.createElement("canvas"); content.width = W; content.height = H;
+      const cc = content.getContext("2d");
+      const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
+      const mctx = mc.getContext("2d");
+      if (cc && mctx) {
+        const clear = { color: "rgba(0,0,0,0)" };
+        drawFrame(cc, W, H, layers.map((l) => l.id === layer.id ? { ...l, matte: undefined } : { ...l, visible: false }), time, clear, images, models, videos, cameraMotion);
+        drawFrame(mctx, W, H, layers.map((l) => l.id === matteLayer.id ? { ...l, visible: true } : { ...l, visible: false }), time, clear, images, models, videos, cameraMotion);
+        cc.globalCompositeOperation = layer.matte === "invert" ? "destination-out" : "destination-in";
+        cc.drawImage(mc, 0, 0);
+        ctx.drawImage(content, 0, 0);
+      }
+      continue;
+    }
     const v = sampleRigLayer(layer, layers, time);
     if (layer.followCamera && cameraMotion) {
       const off = cameraOffsetAt(cameraMotion, time);
@@ -456,4 +475,18 @@ export async function flattenLayers(all: Layer[], ids: string[], time: number, W
   const out = document.createElement("canvas"); out.width = w; out.height = h;
   out.getContext("2d")?.drawImage(c, x0, y0, w, h, 0, 0, w, h);
   return { src: out.toDataURL("image/png"), w, h, x: x0 + w / 2 - W / 2, y: y0 + h / 2 - H / 2 };
+}
+
+const matteImages = new Map<string, HTMLImageElement>();
+/** Synchronous matte alpha for the stage (shapes, text and already-loaded images). */
+export function stageMatteUrl(layers: Layer[], matteId: string, time: number, W: number, H: number) {
+  const only = layers.map((l) => l.id === matteId ? { ...l, visible: true, matte: undefined } : { ...l, visible: false });
+  for (const l of only) if (l.visible && l.kind === "image" && l.src && !matteImages.has(l.src)) {
+    const img = new Image(); img.src = l.src; matteImages.set(l.src, img);
+  }
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d"); if (!ctx) return "";
+  const ready = new Map([...matteImages].filter(([, i]) => i.complete && i.naturalWidth));
+  drawFrame(ctx, W, H, only, time, { color: "rgba(0,0,0,0)" }, ready, new Map(), new Map());
+  return c.toDataURL("image/png");
 }
